@@ -1,0 +1,37 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Item {
+  id              Int     @id @default(autoincrement())
+  itemId          String  @unique @map("item_id")
+  institutionId   String  @map("institution_id")
+  institutionName String? @map("institution_name")
+
+  @@map("institution_items")
+}
+
+model ExternalError {
+  id           Int      @id @default(autoincrement())
+  provider     String
+  errorCode    String?
+  errorType    String?
+  errorMessage String?
+  requestId    String?
+  timestamp    DateTime @default(now())
+  latency      Int
+  metadata     Json?    @default("{}")
+  count        Int      @default(1)
+  endpoint     String?
+  statusCode   Int?
+
+  @@index([provider, errorCode, endpoint, statusCode, timestamp(sort: Desc)])
+  @@map("external_errors")
+}

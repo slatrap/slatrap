@@ -1,0 +1,27 @@
+{
+  "name": "@slatrap/core",
+  "version": "0.0.1",
+  "description": "Core Slatrap runtime services, listeners, and monitoring integration.",
+  "license": "UNLICENSED",
+  "private": false,
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist/src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "slatrap",
+    "fintech",
+    "nestjs",
+    "monitoring"
+  ]
+}

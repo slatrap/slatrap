@@ -1,0 +1,71 @@
+import { Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { type Request } from 'express';
+import { PlaidSimulatorService } from './plaid-simulator.service';
+import { SimulationInternalTokenGuard } from '../../shared/guards/simulation-internal-token.guard';
+import { SimulationInternalNetworkGuard } from '../../shared/guards/simulation-internal-network.guard';
+
+@Controller('plaid')
+@UseGuards(SimulationInternalNetworkGuard, SimulationInternalTokenGuard)
+export class PlaidSimulationController {
+  constructor(private readonly plaidSimulator: PlaidSimulatorService) {}
+
+  @Post('no-accounts')
+  @HttpCode(200)
+  simulateNoAccounts(@Req() req: Request) {
+    return this.plaidSimulator.triggerNoAccountsError(
+      this.getSimulationOptions(req),
+    );
+  }
+
+  @Post('institution-down')
+  @HttpCode(200)
+  simulateInstitutionDown(@Req() req: Request) {
+    return this.plaidSimulator.triggerInstitutionDownError(
+      this.getSimulationOptions(req),
+    );
+  }
+
+  @Post('accounts-limit')
+  @HttpCode(200)
+  simulateAccountsLimit(@Req() req: Request) {
+    return this.plaidSimulator.triggerAccountsLimitError(
+      this.getSimulationOptions(req),
+    );
+  }
+
+  @Post('institution-not-responding')
+  @HttpCode(200)
+  simulateInstitutionNotResponding(@Req() req: Request) {
+    return this.plaidSimulator.triggerInstitutionNotRespondingError(
+      this.getSimulationOptions(req),
+    );
+  }
+
+  @Post('item-login-required')
+  @HttpCode(200)
+  simulateItemLoginRequired(@Req() req: Request) {
+    return this.plaidSimulator.triggerItemLoginRequiredError(
+      this.getSimulationOptions(req),
+    );
+  }
+
+  @Post('invalid-access-token')
+  @HttpCode(200)
+  simulateInvalidAccessToken(@Req() req: Request) {
+    return this.plaidSimulator.triggerInvalidAccessTokenError(
+      this.getSimulationOptions(req),
+    );
+  }
+
+  private getSimulationOptions(req: Request): {
+    skipProviderErrorEmit?: boolean;
+  } {
+    return {
+      skipProviderErrorEmit: this.isCronScenarioRequest(req),
+    };
+  }
+
+  private isCronScenarioRequest(req: Request): boolean {
+    return req.header('x-slatrap-origin') === 'cron-auto';
+  }
+}
