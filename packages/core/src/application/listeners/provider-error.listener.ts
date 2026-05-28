@@ -16,6 +16,7 @@ import {
   type SlackAlertJobData,
 } from '../../infrastructure/notifications/slack-queue';
 import { ErrorDeduplicationService } from '../services/error-deduplication.service';
+import { SlackService } from '../../infrastructure/notifications/slack.service';
 
 @Injectable()
 export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
@@ -35,9 +36,10 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
     private readonly inspector: EventBusService,
     private readonly fintechErrorCaptureService: ProviderErrorCaptureService,
     private readonly deduplicationService: ErrorDeduplicationService,
+    private readonly slackService: SlackService,
     @InjectQueue(SLACK_QUEUE_NAME)
     private readonly slackQueue: Queue<SlackAlertJobData>,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.inspector.on(PROVIDER_ERROR_EVENT, this.listener);
@@ -79,8 +81,8 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
     const dedup =
       await this.deduplicationService.checkAndRegisterError(errorFingerprint);
 
-    // ONLY send Slack if first occurrence
-    if (!dedup.isDuplicate) {
+    // ONLY send Slack if first occurrence and Slack is configured
+    if (!dedup.isDuplicate && this.slackService.isEnabled) {
       const fullErrorMessage = {
         providerPayload: event.providerPayload,
         endpoint: capturedError.endpoint,
@@ -91,7 +93,7 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
       await this.slackQueue.add(SLACK_SEND_ALERT_JOB, {
         text: JSON.stringify(fullErrorMessage, null, 2),
       });
-    } else {
+    } else if (dedup.isDuplicate) {
       this.logger.debug(
         `Duplicate error suppressed (already seen within 5min): ${dedup.id}`,
       );

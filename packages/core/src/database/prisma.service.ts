@@ -4,27 +4,40 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService implements OnModuleInit, OnModuleDestroy {
+  private readonly client: PrismaClient | null;
+  readonly isEnabled: boolean;
+
   constructor(configService: ConfigService) {
-    const connectionString = configService.get<string>('DATABASE_URL');
+    const connectionString = configService.get<string>('DATABASE_URL')?.trim();
+    this.isEnabled = Boolean(connectionString);
 
-    if (!connectionString) {
-      throw new Error('DATABASE_URL is required for PrismaService');
+    this.client = this.isEnabled
+      ? new PrismaClient({
+          adapter: new PrismaPg(connectionString!),
+        })
+      : null;
+  }
+
+  /** Prisma client; only available when `DATABASE_URL` is configured. */
+  get db(): PrismaClient {
+    if (!this.client) {
+      throw new Error(
+        'Database is not configured. Set DATABASE_URL to enable persistence.',
+      );
     }
-
-    super({
-      adapter: new PrismaPg(connectionString),
-    });
+    return this.client;
   }
 
   async onModuleInit() {
-    await this.$connect();
+    if (this.client) {
+      await this.client.$connect();
+    }
   }
 
   async onModuleDestroy() {
-    await this.$disconnect();
+    if (this.client) {
+      await this.client.$disconnect();
+    }
   }
 }
