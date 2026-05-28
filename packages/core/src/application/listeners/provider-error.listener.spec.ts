@@ -7,8 +7,11 @@ import { ProviderErrorCaptureService } from '../services/provider-error-capture.
 import { ErrorDeduplicationService } from '../services/error-deduplication.service';
 import { ProviderErrorListener } from './provider-error.listener';
 import { Logger } from '@nestjs/common';
+import { SlackService } from '../../infrastructure/notifications/slack.service';
 
 describe('ProviderErrorListener', () => {
+  const createSlackService = (isEnabled = true) =>
+    ({ isEnabled }) as unknown as SlackService;
   const flushPromises = async () => {
     await new Promise((resolve) => setImmediate(resolve));
   };
@@ -32,6 +35,7 @@ describe('ProviderErrorListener', () => {
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
+      createSlackService(),
       slackQueue as unknown as Queue<SlackAlertJobData>,
     );
 
@@ -72,6 +76,7 @@ describe('ProviderErrorListener', () => {
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
+      createSlackService(),
       slackQueue as unknown as Queue<SlackAlertJobData>,
     );
 
@@ -138,6 +143,7 @@ describe('ProviderErrorListener', () => {
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
+      createSlackService(),
       slackQueue as unknown as Queue<SlackAlertJobData>,
     );
 
@@ -217,6 +223,7 @@ describe('ProviderErrorListener', () => {
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
+      createSlackService(),
       slackQueue as unknown as Queue<SlackAlertJobData>,
     );
 
@@ -235,6 +242,60 @@ describe('ProviderErrorListener', () => {
     await flushPromises();
 
     expect(deduplicationService.checkAndRegisterError).toHaveBeenCalled();
+    expect(slackQueue.add).not.toHaveBeenCalled();
+  });
+
+  it('does not enqueue slack alert when Slack is not configured', async () => {
+    let registeredListener: ((payload: unknown) => void) | undefined;
+    const inspector = {
+      on: jest.fn((eventName: string, listener: (payload: unknown) => void) => {
+        if (eventName === PROVIDER_ERROR_EVENT) {
+          registeredListener = listener;
+        }
+      }),
+      off: jest.fn(),
+    };
+    const capturedError = {
+      normalizedProvider: 'plaid',
+      errorCode: 'ITEM_LOGIN_REQUIRED',
+      errorType: 'ITEM_ERROR',
+      errorMessage: 'Re-auth required',
+      requestId: 'req_01',
+      endpoint: '/plaid/transactions/get',
+      statusCode: 429,
+      metadata: {},
+    };
+    const fintechErrorCaptureService = {
+      captureProviderError: jest.fn().mockResolvedValue(capturedError),
+    };
+    const deduplicationService = {
+      checkAndRegisterError: jest
+        .fn()
+        .mockResolvedValue({ isDuplicate: false, id: 1 }),
+    };
+    const slackQueue = {
+      add: jest.fn(),
+    };
+
+    const listener = new ProviderErrorListener(
+      inspector as unknown as EventBusService,
+      fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
+      deduplicationService as unknown as ErrorDeduplicationService,
+      createSlackService(false),
+      slackQueue as unknown as Queue<SlackAlertJobData>,
+    );
+
+    listener.onModuleInit();
+    registeredListener?.({
+      provider: 'plaid',
+      endpoint: '/plaid/transactions/get',
+      statusCode: 429,
+      providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
+      latency: 42,
+    });
+
+    await flushPromises();
+
     expect(slackQueue.add).not.toHaveBeenCalled();
   });
 
@@ -268,6 +329,7 @@ describe('ProviderErrorListener', () => {
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
+      createSlackService(),
       slackQueue as unknown as Queue<SlackAlertJobData>,
     );
 

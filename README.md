@@ -60,14 +60,14 @@ npm run dev:infra:down
 Create `.env` (or `.env.local` for local overrides):
 
 ```bash
-# Database (required)
+# Database (optional — omit to skip persistence; Redis dedup still works)
 # docker-compose.yml defaults:
 # - user: postgres
 # - password: mysecretpassword
 # - db: nest_db
 DATABASE_URL="postgresql://postgres:mysecretpassword@localhost:5432/nest_db?schema=public"
 
-# Slack (optional, but required for alerts)
+# Slack (optional — omit to skip Slack alerts)
 SLACK_WEBHOOK_URL="https://hooks.slack.com/services/xxx/yyy/zzz"
 
 # Redis (required by deduplication and queue)

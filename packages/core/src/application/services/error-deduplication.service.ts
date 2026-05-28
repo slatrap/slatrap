@@ -52,20 +52,35 @@ export class ErrorDeduplicationService {
         count: number;
         firstSeenAt: string;
       };
-      await this.incrementErrorCount(existing.id);
+      const nextCount = existing.count + 1;
+      let recordId = existing.id;
+
+      if (this.prisma.isEnabled) {
+        if (recordId === 0) {
+          // Errors seen before DATABASE_URL was set only existed in Redis (id: 0).
+          // Backfill one DB row with the total occurrence count so far.
+          const created = await this.createErrorRecord(
+            errorFingerprint,
+            nextCount,
+          );
+          recordId = created.id;
+        } else {
+          await this.incrementErrorCount(recordId);
+        }
+      }
 
       await this.redis.setex(
         key,
         redisDedupWindowSeconds,
         JSON.stringify({
-          id: existing.id,
-          count: existing.count + 1,
+          id: recordId,
+          count: nextCount,
           firstSeenAt: existing.firstSeenAt,
           lastSeenAt: now,
         }),
       );
 
-      return { isDuplicate: true, id: existing.id };
+      return { isDuplicate: true, id: recordId };
     }
 
     const created = (await this.createErrorRecord(errorFingerprint)) as {
@@ -91,14 +106,25 @@ export class ErrorDeduplicationService {
   }
 
   private async incrementErrorCount(id: number): Promise<void> {
-    await this.prisma.externalError.update({
+    if (!this.prisma.isEnabled) {
+      return;
+    }
+
+    await this.prisma.db.externalError.update({
       where: { id },
       data: { count: { increment: 1 } },
     });
   }
 
-  private async createErrorRecord(fp: ErrorFingerprint) {
-    return this.prisma.externalError.create({
+  private async createErrorRecord(
+    fp: ErrorFingerprint,
+    initialCount = 1,
+  ): Promise<{ id: number }> {
+    if (!this.prisma.isEnabled) {
+      return { id: 0 };
+    }
+
+    return this.prisma.db.externalError.create({
       data: {
         provider: fp.provider?.toUpperCase(),
         errorCode: fp.errorCode,
@@ -108,7 +134,7 @@ export class ErrorDeduplicationService {
         statusCode: fp.statusCode,
         endpoint: fp.endpoint,
         latency: fp.latency,
-        count: 1,
+        count: initialCount,
         metadata: toJsonObject(fp.metadata),
       },
     });

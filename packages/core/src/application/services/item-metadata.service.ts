@@ -28,10 +28,20 @@ export class ItemMetadataService {
       };
     }
 
+    if (!this.prismaService.isEnabled) {
+      return {
+        itemId,
+        institutionId: institutionId ?? 'unknown',
+        institutionName,
+      };
+    }
+
     let savedItem = null as
-      | (Awaited<ReturnType<typeof this.prismaService.item.findUnique>> & {})
+      | (Awaited<
+          ReturnType<typeof this.prismaService.db.item.findUnique>
+        > & {})
       | null;
-    savedItem = await this.prismaService.item.findUnique({
+    savedItem = await this.prismaService.db.item.findUnique({
       where: { itemId },
     });
 
@@ -45,7 +55,7 @@ export class ItemMetadataService {
     }
 
     if (!savedItem && institutionId) {
-      await this.prismaService.item.create({
+      await this.prismaService.db.item.create({
         data: { itemId, institutionId, institutionName },
       });
     } else if (
@@ -53,7 +63,7 @@ export class ItemMetadataService {
       ((institutionId && institutionId !== savedItem.institutionId) ||
         institutionName !== savedItem.institutionName)
     ) {
-      await this.prismaService.item.update({
+      await this.prismaService.db.item.update({
         where: { itemId },
         data: { institutionId, institutionName },
       });

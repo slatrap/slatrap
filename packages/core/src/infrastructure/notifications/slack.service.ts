@@ -13,8 +13,12 @@ export class SlackService {
   private readonly webhookUrl?: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.webhookUrl = this.configService.get<string>('SLACK_WEBHOOK_URL');
+    this.webhookUrl = this.configService.get<string>('SLACK_WEBHOOK_URL')?.trim();
     this.validateWebhookUrl(this.webhookUrl);
+  }
+
+  get isEnabled(): boolean {
+    return Boolean(this.webhookUrl);
   }
 
   async sendMessage(text: string) {
