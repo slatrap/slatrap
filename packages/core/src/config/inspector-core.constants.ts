@@ -1,0 +1,2 @@
+export const INSPECTOR_CORE_OPTIONS = Symbol('INSPECTOR_CORE_OPTIONS');
+export const DEDUP_STORE = Symbol('DEDUP_STORE');

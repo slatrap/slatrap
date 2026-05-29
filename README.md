@@ -70,7 +70,7 @@ DATABASE_URL="postgresql://postgres:mysecretpassword@localhost:5432/nest_db?sche
 # Slack (optional — omit to skip Slack alerts)
 SLACK_WEBHOOK_URL="https://hooks.slack.com/services/xxx/yyy/zzz"
 
-# Redis (required by deduplication and queue)
+# Redis (optional — omit host for in-memory dedup; set host to enable Redis dedup + queued Slack alerts)
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REDIS_USERNAME=
@@ -113,6 +113,43 @@ npm run test:e2e
 Configure inspector (Nest):
 
 ```ts
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import {
+  InspectorCoreModule,
+  createInspectorCoreOptionsFromConfigService,
+} from '@slatrap/core';
+
+@Module({
+  imports: [
+    InspectorCoreModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
+        createInspectorCoreOptionsFromConfigService(config),
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+Or pass options directly (all optional):
+
+```ts
+InspectorCoreModule.forRoot({
+  databaseUrl: process.env.DATABASE_URL,
+  slackWebhookUrl: process.env.SLACK_WEBHOOK_URL,
+  redis: process.env.REDIS_HOST
+    ? { host: process.env.REDIS_HOST, port: 6379 }
+    : undefined,
+});
+```
+
+When `redis` is set, Slack alerts are enqueued (BullMQ) so the error handler returns quickly. Without Redis, dedup uses in-memory storage and Slack is sent directly.
+
+Wire Slatrap emit API to the core event bus (required once per app process; otherwise `Slatrap.emit()` is a no-op):
+
+```ts
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Slatrap } from '@slatrap/slatrap';
 import { EventBusService, PROVIDER_ERROR_EVENT } from '@slatrap/core';
@@ -130,6 +167,18 @@ export class SlatrapBootstrapService implements OnModuleInit {
 	}
 }
 ```
+
+Register it in the same Nest module that imports `InspectorCoreModule` (this repo: `AppProductionModule`):
+
+```ts
+@Module({
+  imports: [InspectorCoreModule.forRootAsync({ /* ... */ })],
+  providers: [SlatrapBootstrapService],
+})
+export class AppModule {}
+```
+
+Alternative: call `Slatrap.configureForCoreInspector(...)` once in `main.ts` after `NestFactory.create`, using `app.get(EventBusService)` — no extra provider class needed.
 
 Use as axios error middleware:
 

@@ -1,8 +1,10 @@
-import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import * as Joi from 'joi';
-import { InspectorCoreModule } from '../packages/core/src';
+import {
+  createInspectorCoreOptionsFromConfigService,
+  InspectorCoreModule,
+} from '../packages/core/src';
 
 const appValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
@@ -13,10 +15,11 @@ const appValidationSchema = Joi.object({
   STRIPE_WEBHOOK_SECRET: Joi.string().optional(),
   STRIPE_EXTERNAL_REF_ID: Joi.string().optional(),
   SLACK_WEBHOOK_URL: Joi.string().uri().optional(),
-  REDIS_HOST: Joi.string().default('127.0.0.1'),
+  REDIS_HOST: Joi.string().optional().allow(''),
   REDIS_PORT: Joi.number().port().default(6379),
   REDIS_USERNAME: Joi.string().optional(),
   REDIS_PASSWORD: Joi.string().optional(),
+  DATABASE_URL: Joi.string().optional().allow(''),
 
   // Optional simulation settings are validated so shared env files remain compatible.
   SIMULATION_ENABLED: Joi.boolean()
@@ -42,18 +45,12 @@ export function createAppCoreImports() {
         abortEarly: false,
       },
     }),
-    BullModule.forRootAsync({
+    InspectorCoreModule.forRootAsync({
+      imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get<string>('REDIS_HOST', '127.0.0.1'),
-          port: configService.get<number>('REDIS_PORT', 6379),
-          username: configService.get<string>('REDIS_USERNAME'),
-          password: configService.get<string>('REDIS_PASSWORD'),
-        },
-      }),
+      useFactory: (configService: ConfigService) =>
+        createInspectorCoreOptionsFromConfigService(configService),
     }),
-    InspectorCoreModule,
     ScheduleModule.forRoot(),
   ];
 }

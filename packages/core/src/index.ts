@@ -1,4 +1,6 @@
 export * from './inspector-core.module';
+export * from './config/inspector-core.options';
+export * from './config/inspector-core.constants';
 export * from './database/prisma.service';
 export * from './application/services/provider-error-capture.service';
 export * from './application/services/error-deduplication.service';
