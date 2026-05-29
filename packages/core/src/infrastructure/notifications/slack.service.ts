@@ -1,10 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { INSPECTOR_CORE_OPTIONS } from '../../config/inspector-core.constants';
+import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
+import { validateSlackWebhookUrl } from '../../config/validate-slack-webhook-url';
 
-const ALLOWED_SLACK_WEBHOOK_HOSTS = new Set([
-  'hooks.slack.com',
-  'hooks.slack-gov.com',
-]);
 const SLACK_WEBHOOK_TIMEOUT_MS = 5000;
 
 @Injectable()
@@ -12,9 +10,13 @@ export class SlackService {
   private readonly logger = new Logger(SlackService.name);
   private readonly webhookUrl?: string;
 
-  constructor(private readonly configService: ConfigService) {
-    this.webhookUrl = this.configService.get<string>('SLACK_WEBHOOK_URL')?.trim();
-    this.validateWebhookUrl(this.webhookUrl);
+  constructor(
+    @Inject(INSPECTOR_CORE_OPTIONS)
+    options: InspectorCoreModuleOptions,
+  ) {
+    this.webhookUrl = options.slackWebhookUrl;
+
+    validateSlackWebhookUrl(this.webhookUrl);
   }
 
   get isEnabled(): boolean {
@@ -51,29 +53,6 @@ export class SlackService {
       this.logger.error('Slack notification failed', error);
     } finally {
       clearTimeout(timeout);
-    }
-  }
-
-  private validateWebhookUrl(webhookUrl?: string): void {
-    if (!webhookUrl) {
-      return;
-    }
-
-    let parsed: URL;
-    try {
-      parsed = new URL(webhookUrl);
-    } catch {
-      throw new Error('Invalid SLACK_WEBHOOK_URL: must be a valid URL.');
-    }
-
-    if (parsed.protocol !== 'https:') {
-      throw new Error('Invalid SLACK_WEBHOOK_URL: only HTTPS is allowed.');
-    }
-
-    if (!ALLOWED_SLACK_WEBHOOK_HOSTS.has(parsed.hostname)) {
-      throw new Error(
-        `Invalid SLACK_WEBHOOK_URL host: ${parsed.hostname}. Allowed hosts: ${Array.from(ALLOWED_SLACK_WEBHOOK_HOSTS).join(', ')}`,
-      );
     }
   }
 }

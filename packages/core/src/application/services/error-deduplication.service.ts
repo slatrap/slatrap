@@ -1,8 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { type RedisClient } from 'bullmq';
-import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service';
+import {
+  DEDUP_STORE,
+  INSPECTOR_CORE_OPTIONS,
+} from '../../config/inspector-core.constants';
+import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
+import { type DedupStore } from '../../infrastructure/redis/dedup-store';
 
 interface ErrorFingerprint {
   provider: string;
@@ -32,18 +36,20 @@ function toJsonObject(
 @Injectable()
 export class ErrorDeduplicationService {
   constructor(
-    @Inject('REDIS_CLIENT') private readonly redis: RedisClient,
+    @Inject(DEDUP_STORE) private readonly dedupStore: DedupStore,
+
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService,
-  ) {}
+
+    @Inject(INSPECTOR_CORE_OPTIONS)
+    private readonly options: InspectorCoreModuleOptions,
+  ) { }
 
   async checkAndRegisterError(
     errorFingerprint: ErrorFingerprint,
   ): Promise<DeduplicationResult> {
-    const redisDedupWindowSeconds =
-      this.configService.get<string>('ERROR_DEDUP_WINDOW_SECONDS') ?? 300;
+    const dedupWindowSeconds = this.options.errorDedupWindowSeconds ?? 300;
     const key = this.buildRedisKey(errorFingerprint);
-    const cached = await this.redis.get(key);
+    const cached = await this.dedupStore.get(key);
     const now = new Date();
 
     if (cached) {
@@ -57,8 +63,6 @@ export class ErrorDeduplicationService {
 
       if (this.prisma.isEnabled) {
         if (recordId === 0) {
-          // Errors seen before DATABASE_URL was set only existed in Redis (id: 0).
-          // Backfill one DB row with the total occurrence count so far.
           const created = await this.createErrorRecord(
             errorFingerprint,
             nextCount,
@@ -69,9 +73,9 @@ export class ErrorDeduplicationService {
         }
       }
 
-      await this.redis.setex(
+      await this.dedupStore.setex(
         key,
-        redisDedupWindowSeconds,
+        dedupWindowSeconds,
         JSON.stringify({
           id: recordId,
           count: nextCount,
@@ -83,18 +87,43 @@ export class ErrorDeduplicationService {
       return { isDuplicate: true, id: recordId };
     }
 
+    const existingInDb = await this.findRecentMatchingErrorInDb(
+      errorFingerprint,
+      dedupWindowSeconds,
+      now,
+    );
+
+    if (existingInDb) {
+      const nextCount = existingInDb.count + 1;
+
+      await this.incrementErrorCount(existingInDb.id);
+
+      await this.dedupStore.setex(
+        key,
+        dedupWindowSeconds,
+        JSON.stringify({
+          id: existingInDb.id,
+          count: nextCount,
+          firstSeenAt: existingInDb.firstSeenAt.toISOString(),
+          lastSeenAt: now.toISOString(),
+        }),
+      );
+
+      return { isDuplicate: true, id: existingInDb.id };
+    }
+
     const created = (await this.createErrorRecord(errorFingerprint)) as {
       id: number;
     };
 
-    await this.redis.setex(
+    await this.dedupStore.setex(
       key,
-      redisDedupWindowSeconds,
+      dedupWindowSeconds,
       JSON.stringify({
         id: created.id,
         count: 1,
-        firstSeenAt: now,
-        lastSeenAt: now,
+        firstSeenAt: now.toISOString(),
+        lastSeenAt: now.toISOString(),
       }),
     );
 
@@ -103,6 +132,44 @@ export class ErrorDeduplicationService {
 
   private buildRedisKey(fp: ErrorFingerprint): string {
     return `error:${fp.provider}:${fp.errorCode}:${fp.endpoint}:${fp.statusCode}`;
+  }
+
+  /**
+   * When dedup storage changes (in-memory vs Redis) or the process restarts, the
+   * cache is empty but the DB may already have a row for this fingerprint.
+   */
+  private async findRecentMatchingErrorInDb(
+    fp: ErrorFingerprint,
+    dedupWindowSeconds: number,
+    now: Date,
+  ): Promise<{ id: number; count: number; firstSeenAt: Date } | null> {
+    if (!this.prisma.isEnabled) {
+      return null;
+    }
+
+    const windowStart = new Date(now.getTime() - dedupWindowSeconds * 1000);
+
+    const row = await this.prisma.db.externalError.findFirst({
+      where: {
+        provider: fp.provider.toUpperCase(),
+        errorCode: fp.errorCode,
+        endpoint: fp.endpoint,
+        statusCode: fp.statusCode,
+        timestamp: { gte: windowStart },
+      },
+      orderBy: { timestamp: 'desc' },
+      select: { id: true, count: true, timestamp: true },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      count: row.count,
+      firstSeenAt: row.timestamp,
+    };
   }
 
   private async incrementErrorCount(id: number): Promise<void> {

@@ -1,15 +1,26 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  Inject,
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
+
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { INSPECTOR_CORE_OPTIONS } from '../config/inspector-core.constants';
+import { type InspectorCoreModuleOptions } from '../config/inspector-core.options';
 
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly client: PrismaClient | null;
   readonly isEnabled: boolean;
 
-  constructor(configService: ConfigService) {
-    const connectionString = configService.get<string>('DATABASE_URL')?.trim();
+  constructor(
+    @Inject(INSPECTOR_CORE_OPTIONS)
+    private readonly options: InspectorCoreModuleOptions,
+  ) {
+    const connectionString = this.options.databaseUrl;
+
     this.isEnabled = Boolean(connectionString);
 
     this.client = this.isEnabled
@@ -19,13 +30,15 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       : null;
   }
 
-  /** Prisma client; only available when `DATABASE_URL` is configured. */
+  /** Prisma client; only available when `databaseUrl` is configured. */
+
   get db(): PrismaClient {
     if (!this.client) {
       throw new Error(
-        'Database is not configured. Set DATABASE_URL to enable persistence.',
+        'Database is not configured. Pass databaseUrl in InspectorCoreModule.forRoot() to enable persistence.',
       );
     }
+
     return this.client;
   }
 

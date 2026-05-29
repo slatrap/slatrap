@@ -1,10 +1,13 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
+import { getQueueToken } from '@nestjs/bullmq';
+import { ModuleRef } from '@nestjs/core';
+import { getOptionalModuleRef } from '../../infrastructure/nest/get-optional-module-ref';
 import { Queue } from 'bullmq';
 import { ProviderErrorCaptureService } from '../services/provider-error-capture.service';
 import { EventBusService } from '../../infrastructure/eventing/event-bus.service';
@@ -17,6 +20,11 @@ import {
 } from '../../infrastructure/notifications/slack-queue';
 import { ErrorDeduplicationService } from '../services/error-deduplication.service';
 import { SlackService } from '../../infrastructure/notifications/slack.service';
+import { INSPECTOR_CORE_OPTIONS } from '../../config/inspector-core.constants';
+import {
+  isRedisConfigured,
+  type InspectorCoreModuleOptions,
+} from '../../config/inspector-core.options';
 
 @Injectable()
 export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
@@ -37,8 +45,9 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
     private readonly fintechErrorCaptureService: ProviderErrorCaptureService,
     private readonly deduplicationService: ErrorDeduplicationService,
     private readonly slackService: SlackService,
-    @InjectQueue(SLACK_QUEUE_NAME)
-    private readonly slackQueue: Queue<SlackAlertJobData>,
+    private readonly moduleRef: ModuleRef,
+    @Inject(INSPECTOR_CORE_OPTIONS)
+    private readonly options: InspectorCoreModuleOptions,
   ) {}
 
   onModuleInit() {
@@ -81,22 +90,39 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
     const dedup =
       await this.deduplicationService.checkAndRegisterError(errorFingerprint);
 
-    // ONLY send Slack if first occurrence and Slack is configured
     if (!dedup.isDuplicate && this.slackService.isEnabled) {
-      const fullErrorMessage = {
-        providerPayload: event.providerPayload,
-        endpoint: capturedError.endpoint,
-        statusCode: capturedError.statusCode,
-        provider: capturedError.normalizedProvider,
-      };
+      const text = JSON.stringify(
+        {
+          providerPayload: event.providerPayload,
+          endpoint: capturedError.endpoint,
+          statusCode: capturedError.statusCode,
+          provider: capturedError.normalizedProvider,
+        },
+        null,
+        2,
+      );
 
-      await this.slackQueue.add(SLACK_SEND_ALERT_JOB, {
-        text: JSON.stringify(fullErrorMessage, null, 2),
-      });
+      await this.enqueueSlackAlert(text);
     } else if (dedup.isDuplicate) {
       this.logger.debug(
         `Duplicate error suppressed (already seen within 5min): ${dedup.id}`,
       );
     }
+  }
+
+  private async enqueueSlackAlert(text: string): Promise<void> {
+    if (isRedisConfigured(this.options)) {
+      const queue = getOptionalModuleRef<Queue<SlackAlertJobData>>(
+        this.moduleRef,
+        getQueueToken(SLACK_QUEUE_NAME),
+      );
+
+      if (queue) {
+        await queue.add(SLACK_SEND_ALERT_JOB, { text });
+        return;
+      }
+    }
+
+    await this.slackService.sendMessage(text);
   }
 }

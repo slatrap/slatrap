@@ -1,51 +1,132 @@
-import { BullModule } from '@nestjs/bullmq';
-import { ConfigService } from '@nestjs/config';
-import { Module } from '@nestjs/common';
+import {
+  type DynamicModule,
+  type InjectionToken,
+  Module,
+  type Provider,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 import { PrismaService } from './database/prisma.service';
 import { ProviderErrorCaptureService } from './application/services/provider-error-capture.service';
 import { PlaidItemCreatedListener } from './application/listeners/plaid-item-created.listener';
 import { ProviderErrorListener } from './application/listeners/provider-error.listener';
 import { ErrorDeduplicationService } from './application/services/error-deduplication.service';
-import { SLACK_QUEUE_NAME } from './infrastructure/notifications/slack-queue';
-import { SlackProcessor } from './infrastructure/notifications/slack.processor';
 import { SlackService } from './infrastructure/notifications/slack.service';
 import { EventBusService } from './infrastructure/eventing/event-bus.service';
 import { ItemMetadataService } from './application/services/item-metadata.service';
+import { InspectorCoreSlackQueueBootstrap } from './inspector-core-slack-queue.bootstrap';
+import { InspectorSlackQueueModule } from './inspector-slack-queue.module';
+import {
+  DEDUP_STORE,
+  INSPECTOR_CORE_OPTIONS,
+} from './config/inspector-core.constants';
+import {
+  getRedisConnectionOptions,
+  isRedisConfigured,
+  normalizeInspectorCoreOptions,
+  type InspectorCoreModuleAsyncOptions,
+  type InspectorCoreModuleOptions,
+} from './config/inspector-core.options';
+import {
+  InMemoryDedupStore,
+  RedisDedupStore,
+} from './infrastructure/redis/dedup-store';
+import { validateSlackWebhookUrl } from './config/validate-slack-webhook-url';
 
-const REDIS_CLIENT = 'REDIS_CLIENT';
+const CORE_PROVIDERS: Provider[] = [
+  PrismaService,
+  EventBusService,
+  ItemMetadataService,
+  ProviderErrorCaptureService,
+  ProviderErrorListener,
+  PlaidItemCreatedListener,
+  SlackService,
+  ErrorDeduplicationService,
+  InspectorCoreSlackQueueBootstrap,
+];
 
-@Module({
-  imports: [BullModule.registerQueue({ name: SLACK_QUEUE_NAME })],
-  providers: [
-    {
-      provide: REDIS_CLIENT,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) =>
-        new Redis({
-          host: configService.get<string>('REDIS_HOST', '127.0.0.1'),
-          port: configService.get<number>('REDIS_PORT', 6379),
-          username: configService.get<string>('REDIS_USERNAME'),
-          password: configService.get<string>('REDIS_PASSWORD'),
-        }),
+const CORE_EXPORTS = [
+  INSPECTOR_CORE_OPTIONS,
+  DEDUP_STORE,
+  PrismaService,
+  EventBusService,
+  ItemMetadataService,
+  ProviderErrorCaptureService,
+  ErrorDeduplicationService,
+];
+
+function createDedupStoreProvider(): Provider {
+  return {
+    provide: DEDUP_STORE,
+    inject: [INSPECTOR_CORE_OPTIONS],
+    useFactory: (options: InspectorCoreModuleOptions) => {
+      if (!isRedisConfigured(options)) {
+        return new InMemoryDedupStore();
+      }
+
+      const redis = new Redis(getRedisConnectionOptions(options));
+      return new RedisDedupStore(redis);
     },
-    PrismaService,
-    EventBusService,
-    ItemMetadataService,
-    ProviderErrorCaptureService,
-    ProviderErrorListener,
-    PlaidItemCreatedListener,
-    SlackProcessor,
-    SlackService,
-    ErrorDeduplicationService,
-  ],
-  exports: [
-    REDIS_CLIENT,
-    PrismaService,
-    EventBusService,
-    ItemMetadataService,
-    ProviderErrorCaptureService,
-    ErrorDeduplicationService,
-  ],
-})
-export class InspectorCoreModule {}
+  };
+}
+
+function createSlackQueueImport(
+  options: InspectorCoreModuleOptions,
+): DynamicModule | undefined {
+  return isRedisConfigured(options)
+    ? InspectorSlackQueueModule.forRoot(options)
+    : undefined;
+}
+
+function createDynamicModule(
+  optionsProvider: Provider,
+  slackQueueImport?: DynamicModule,
+): DynamicModule {
+  return {
+    module: InspectorCoreModule,
+    imports: slackQueueImport ? [slackQueueImport] : [],
+    providers: [optionsProvider, createDedupStoreProvider(), ...CORE_PROVIDERS],
+    exports: CORE_EXPORTS,
+  };
+}
+
+function createAsyncOptionsProvider<TInject extends readonly unknown[]>(
+  asyncOptions: InspectorCoreModuleAsyncOptions<TInject>,
+): Provider {
+  return {
+    provide: INSPECTOR_CORE_OPTIONS,
+    useFactory: async (...args: TInject) => {
+      const options = await asyncOptions.useFactory(...args);
+      const normalized = normalizeInspectorCoreOptions(options);
+      validateSlackWebhookUrl(normalized.slackWebhookUrl);
+      return normalized;
+    },
+    inject: (asyncOptions.inject ?? []) as InjectionToken[],
+  };
+}
+
+@Module({})
+export class InspectorCoreModule {
+  static forRoot(options: InspectorCoreModuleOptions): DynamicModule {
+    const normalized = normalizeInspectorCoreOptions(options);
+    validateSlackWebhookUrl(normalized.slackWebhookUrl);
+
+    return createDynamicModule(
+      {
+        provide: INSPECTOR_CORE_OPTIONS,
+        useValue: normalized,
+      },
+      createSlackQueueImport(normalized),
+    );
+  }
+
+  static forRootAsync<TInject extends readonly unknown[]>(
+    asyncOptions: InspectorCoreModuleAsyncOptions<TInject>,
+  ): DynamicModule {
+    const base = createDynamicModule(createAsyncOptionsProvider(asyncOptions));
+
+    return {
+      ...base,
+      imports: [...(base.imports ?? []), ...(asyncOptions.imports ?? [])],
+    };
+  }
+}

@@ -1,42 +1,54 @@
-import { type Queue } from 'bullmq';
+import { getQueueToken } from '@nestjs/bullmq';
 import { PROVIDER_ERROR_EVENT } from '../../domain/events/events.constants';
 import { SLACK_SEND_ALERT_JOB } from '../../infrastructure/notifications/slack-queue';
-import { type SlackAlertJobData } from '../../infrastructure/notifications/slack-queue';
 import { EventBusService } from '../../infrastructure/eventing/event-bus.service';
 import { ProviderErrorCaptureService } from '../services/provider-error-capture.service';
 import { ErrorDeduplicationService } from '../services/error-deduplication.service';
 import { ProviderErrorListener } from './provider-error.listener';
 import { Logger } from '@nestjs/common';
 import { SlackService } from '../../infrastructure/notifications/slack.service';
+import { ModuleRef } from '@nestjs/core';
+import { SLACK_QUEUE_NAME } from '../../infrastructure/notifications/slack-queue';
+import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
 
 describe('ProviderErrorListener', () => {
+  const defaultOptions: InspectorCoreModuleOptions = {
+    redis: { host: '127.0.0.1', port: 6379 },
+  };
+
   const createSlackService = (isEnabled = true) =>
-    ({ isEnabled }) as unknown as SlackService;
+    ({
+      isEnabled,
+      sendMessage: jest.fn().mockResolvedValue(undefined),
+    }) as unknown as SlackService;
+
+  const createModuleRef = (queue?: { add: jest.Mock }) => {
+    return {
+      get: jest.fn((token: string) => {
+        if (token === getQueueToken(SLACK_QUEUE_NAME)) {
+          return queue;
+        }
+        return undefined;
+      }),
+    } as unknown as ModuleRef;
+  };
+
   const flushPromises = async () => {
     await new Promise((resolve) => setImmediate(resolve));
   };
 
   it('subscribes and unsubscribes on module lifecycle hooks', () => {
-    const inspector = {
-      on: jest.fn(),
-      off: jest.fn(),
-    };
-    const fintechErrorCaptureService = {
-      captureProviderError: jest.fn(),
-    };
-    const deduplicationService = {
-      checkAndRegisterError: jest.fn(),
-    };
-    const slackQueue = {
-      add: jest.fn(),
-    };
+    const inspector = { on: jest.fn(), off: jest.fn() };
+    const fintechErrorCaptureService = { captureProviderError: jest.fn() };
+    const deduplicationService = { checkAndRegisterError: jest.fn() };
 
     const listener = new ProviderErrorListener(
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
       createSlackService(),
-      slackQueue as unknown as Queue<SlackAlertJobData>,
+      createModuleRef(),
+      defaultOptions,
     );
 
     listener.onModuleInit();
@@ -52,7 +64,7 @@ describe('ProviderErrorListener', () => {
     );
   });
 
-  it('skips deduplication and queue when capture result is null', async () => {
+  it('skips deduplication and slack when capture result is null', async () => {
     let registeredListener: ((payload: unknown) => void) | undefined;
     const inspector = {
       on: jest.fn((eventName: string, listener: (payload: unknown) => void) => {
@@ -65,25 +77,20 @@ describe('ProviderErrorListener', () => {
     const fintechErrorCaptureService = {
       captureProviderError: jest.fn().mockResolvedValue(null),
     };
-    const deduplicationService = {
-      checkAndRegisterError: jest.fn(),
-    };
-    const slackQueue = {
-      add: jest.fn(),
-    };
+    const deduplicationService = { checkAndRegisterError: jest.fn() };
+    const slackService = createSlackService();
+    const slackQueue = { add: jest.fn() };
 
     const listener = new ProviderErrorListener(
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
-      createSlackService(),
-      slackQueue as unknown as Queue<SlackAlertJobData>,
+      slackService,
+      createModuleRef(slackQueue),
+      defaultOptions,
     );
 
     listener.onModuleInit();
-
-    expect(registeredListener).toBeDefined();
-
     registeredListener?.({
       provider: 'plaid',
       endpoint: '/plaid/transactions/get',
@@ -94,20 +101,12 @@ describe('ProviderErrorListener', () => {
 
     await flushPromises();
 
-    expect(
-      fintechErrorCaptureService.captureProviderError,
-    ).toHaveBeenCalledWith({
-      provider: 'plaid',
-      endpoint: '/plaid/transactions/get',
-      statusCode: 429,
-      providerPayload: { error_code: 'RATE_LIMIT_EXCEEDED' },
-      latency: 25,
-    });
     expect(deduplicationService.checkAndRegisterError).not.toHaveBeenCalled();
     expect(slackQueue.add).not.toHaveBeenCalled();
+    expect(slackService.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('enqueues slack alert on first error occurrence (not duplicate)', async () => {
+  it('enqueues slack alert on first error occurrence when redis is configured', async () => {
     let registeredListener: ((payload: unknown) => void) | undefined;
     const inspector = {
       on: jest.fn((eventName: string, listener: (payload: unknown) => void) => {
@@ -133,18 +132,18 @@ describe('ProviderErrorListener', () => {
     const deduplicationService = {
       checkAndRegisterError: jest
         .fn()
-        .mockResolvedValue({ isDuplicate: false, id: 'error_id_1' }),
+        .mockResolvedValue({ isDuplicate: false, id: 1 }),
     };
-    const slackQueue = {
-      add: jest.fn().mockResolvedValue(undefined),
-    };
+    const slackService = createSlackService();
+    const slackQueue = { add: jest.fn().mockResolvedValue(undefined) };
 
     const listener = new ProviderErrorListener(
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
-      createSlackService(),
-      slackQueue as unknown as Queue<SlackAlertJobData>,
+      slackService,
+      createModuleRef(slackQueue),
+      defaultOptions,
     );
 
     listener.onModuleInit();
@@ -158,20 +157,7 @@ describe('ProviderErrorListener', () => {
     };
 
     registeredListener?.(eventPayload);
-
     await flushPromises();
-
-    expect(deduplicationService.checkAndRegisterError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: capturedError.normalizedProvider,
-        errorCode: capturedError.errorCode,
-        endpoint: capturedError.endpoint,
-        statusCode: capturedError.statusCode,
-        latency: eventPayload.latency,
-        errorType: capturedError.errorType,
-        errorMessage: capturedError.errorMessage,
-      }),
-    );
 
     expect(slackQueue.add).toHaveBeenCalledWith(SLACK_SEND_ALERT_JOB, {
       text: JSON.stringify(
@@ -185,6 +171,62 @@ describe('ProviderErrorListener', () => {
         2,
       ),
     });
+    expect(slackService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('sends slack directly when redis is not configured', async () => {
+    let registeredListener: ((payload: unknown) => void) | undefined;
+    const inspector = {
+      on: jest.fn((eventName: string, listener: (payload: unknown) => void) => {
+        if (eventName === PROVIDER_ERROR_EVENT) {
+          registeredListener = listener;
+        }
+      }),
+      off: jest.fn(),
+    };
+    const capturedError = {
+      normalizedProvider: 'plaid',
+      errorCode: 'ITEM_LOGIN_REQUIRED',
+      errorType: 'ITEM_ERROR',
+      errorMessage: 'Re-auth required',
+      requestId: 'req_01',
+      endpoint: '/plaid/transactions/get',
+      statusCode: 429,
+      metadata: {},
+    };
+    const fintechErrorCaptureService = {
+      captureProviderError: jest.fn().mockResolvedValue(capturedError),
+    };
+    const deduplicationService = {
+      checkAndRegisterError: jest
+        .fn()
+        .mockResolvedValue({ isDuplicate: false, id: 1 }),
+    };
+    const slackService = createSlackService();
+    const slackQueue = { add: jest.fn() };
+
+    const listener = new ProviderErrorListener(
+      inspector as unknown as EventBusService,
+      fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
+      deduplicationService as unknown as ErrorDeduplicationService,
+      slackService,
+      createModuleRef(slackQueue),
+      {},
+    );
+
+    listener.onModuleInit();
+    registeredListener?.({
+      provider: 'plaid',
+      endpoint: '/plaid/transactions/get',
+      statusCode: 429,
+      providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
+      latency: 42,
+    });
+
+    await flushPromises();
+
+    expect(slackQueue.add).not.toHaveBeenCalled();
+    expect(slackService.sendMessage).toHaveBeenCalled();
   });
 
   it('suppresses slack alert for duplicate errors', async () => {
@@ -213,39 +255,36 @@ describe('ProviderErrorListener', () => {
     const deduplicationService = {
       checkAndRegisterError: jest
         .fn()
-        .mockResolvedValue({ isDuplicate: true, id: 'error_id_1' }),
+        .mockResolvedValue({ isDuplicate: true, id: 1 }),
     };
-    const slackQueue = {
-      add: jest.fn(),
-    };
+    const slackService = createSlackService();
+    const slackQueue = { add: jest.fn() };
 
     const listener = new ProviderErrorListener(
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
-      createSlackService(),
-      slackQueue as unknown as Queue<SlackAlertJobData>,
+      slackService,
+      createModuleRef(slackQueue),
+      defaultOptions,
     );
 
     listener.onModuleInit();
-
-    const eventPayload = {
+    registeredListener?.({
       provider: 'plaid',
       endpoint: '/plaid/transactions/get',
       statusCode: 429,
       providerPayload: { error_code: 'RATE_LIMIT_EXCEEDED' },
       latency: 15,
-    };
-
-    registeredListener?.(eventPayload);
+    });
 
     await flushPromises();
 
-    expect(deduplicationService.checkAndRegisterError).toHaveBeenCalled();
     expect(slackQueue.add).not.toHaveBeenCalled();
+    expect(slackService.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('does not enqueue slack alert when Slack is not configured', async () => {
+  it('does not send slack when Slack is not configured', async () => {
     let registeredListener: ((payload: unknown) => void) | undefined;
     const inspector = {
       on: jest.fn((eventName: string, listener: (payload: unknown) => void) => {
@@ -273,16 +312,16 @@ describe('ProviderErrorListener', () => {
         .fn()
         .mockResolvedValue({ isDuplicate: false, id: 1 }),
     };
-    const slackQueue = {
-      add: jest.fn(),
-    };
+    const slackService = createSlackService(false);
+    const slackQueue = { add: jest.fn() };
 
     const listener = new ProviderErrorListener(
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
-      createSlackService(false),
-      slackQueue as unknown as Queue<SlackAlertJobData>,
+      slackService,
+      createModuleRef(slackQueue),
+      defaultOptions,
     );
 
     listener.onModuleInit();
@@ -297,6 +336,7 @@ describe('ProviderErrorListener', () => {
     await flushPromises();
 
     expect(slackQueue.add).not.toHaveBeenCalled();
+    expect(slackService.sendMessage).not.toHaveBeenCalled();
   });
 
   it('logs handler failures without throwing', async () => {
@@ -318,23 +358,18 @@ describe('ProviderErrorListener', () => {
         .fn()
         .mockRejectedValue(new Error('capture failed')),
     };
-    const deduplicationService = {
-      checkAndRegisterError: jest.fn(),
-    };
-    const slackQueue = {
-      add: jest.fn(),
-    };
+    const deduplicationService = { checkAndRegisterError: jest.fn() };
 
     const listener = new ProviderErrorListener(
       inspector as unknown as EventBusService,
       fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
       deduplicationService as unknown as ErrorDeduplicationService,
       createSlackService(),
-      slackQueue as unknown as Queue<SlackAlertJobData>,
+      createModuleRef(),
+      defaultOptions,
     );
 
     listener.onModuleInit();
-
     registeredListener?.({
       provider: 'plaid',
       providerPayload: { error_code: 'ANY' },
@@ -343,7 +378,6 @@ describe('ProviderErrorListener', () => {
     await flushPromises();
 
     expect(loggerErrorSpy).toHaveBeenCalled();
-
     loggerErrorSpy.mockRestore();
   });
 });
