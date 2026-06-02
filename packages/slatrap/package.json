@@ -1,8 +1,8 @@
 {
   "name": "@slatrap/slatrap",
-  "version": "0.0.1",
-  "description": "Framework-agnostic Slatrap package for sanitizing and emitting provider error events.",
-  "license": "UNLICENSED",
+  "version": "0.1.0",
+  "description": "Framework-agnostic sanitize and emit API for fintech provider errors (Plaid, Stripe, and similar).",
+  "license": "MIT",
   "private": false,
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -10,18 +10,60 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
+    },
+    "./nestjs": {
+      "types": "./dist/src/nestjs.d.ts",
+      "default": "./dist/src/nestjs.js"
     }
   },
   "files": [
-    "dist/src"
+    "dist/src",
+    "README.md",
+    "LICENSE"
   ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slatrap/slatrap.git",
+    "directory": "packages/slatrap"
+  },
+  "homepage": "https://github.com/slatrap/slatrap/tree/main/packages/slatrap#readme",
+  "bugs": {
+    "url": "https://github.com/slatrap/slatrap/issues"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "keywords": [
     "slatrap",
     "fintech",
+    "plaid",
+    "stripe",
+    "sanitize",
+    "redaction",
     "nestjs",
-    "observability"
-  ]
+    "observability",
+    "error-handling"
+  ],
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^10.0.0 || ^11.0.0",
+    "rxjs": "^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@nestjs/common": {
+      "optional": true
+    },
+    "rxjs": {
+      "optional": true
+    }
+  }
 }

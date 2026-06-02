@@ -120,7 +120,6 @@ function sanitizeWithRedaction<T = unknown>(
   return sanitizeErrorData(value, { redactionText });
 }
 
-export { ProviderErrorInterceptor } from './integrations/nestjs/provider-error.interceptor';
 export {
   DEFAULT_REDACTION_TEXT,
   SENSITIVE_KEY_PATTERNS,

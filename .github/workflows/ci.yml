@@ -35,5 +35,12 @@ jobs:
       - name: Test (slatrap)
         run: npm run test:slatrap
 
+      - name: Build publishable package (slatrap)
+        run: npm run build:slatrap
+
+      - name: Verify npm pack contents
+        working-directory: packages/slatrap
+        run: npm pack --dry-run
+
       - name: Build
         run: npm run build

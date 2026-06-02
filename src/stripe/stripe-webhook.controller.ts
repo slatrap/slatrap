@@ -12,7 +12,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import { Slatrap, ProviderErrorInterceptor } from '../../packages/slatrap/src';
+import { Slatrap } from '../../packages/slatrap/src';
+import { ProviderErrorInterceptor } from '../../packages/slatrap/src/nestjs';
 
 /** Replay-attack window: reject webhooks with timestamps older than 5 minutes. */
 const STRIPE_TOLERANCE_SECONDS = 300;
@@ -55,7 +56,7 @@ type StripeErrorObject = {
 export class StripeWebhookController {
   private readonly logger = new Logger(StripeWebhookController.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   @Post('webhook')
   @HttpCode(200)

@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "build:slatrap": "npm run build --prefix packages/slatrap",
     "postbuild": "node ./scripts/sync-package-dists.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"packages/**/*.ts\" \"test/**/*.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
