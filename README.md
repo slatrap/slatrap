@@ -4,6 +4,14 @@
 
 When Plaid, Stripe, or similar APIs return errors, raw payloads often contain tokens, account identifiers, and other sensitive fields. Slatrap gives you a small, focused pipeline:
 
+## Demo
+
+Stripe simulation → webhook → sanitized error → database + Slack (~11s).
+
+<video controls width="100%" src="docs/assets/stripe-simulation-demo.mp4">
+  <a href="docs/assets/stripe-simulation-demo.mp4">Watch the demo video</a>
+</video>
+
 ## Sanitize — keep data safe
 
 Redact sensitive keys before anything hits logs, queues, or storage. Whitelisted error fields (codes, types, request IDs) stay intact so you can still debug.
