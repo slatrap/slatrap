@@ -8,9 +8,7 @@ When Plaid, Stripe, or similar APIs return errors, raw payloads often contain to
 
 Stripe simulation → webhook → sanitized error → database + Slack (~11s).
 
-<video controls width="100%" src="docs/assets/stripe-simulation-demo.mp4">
-  <a href="docs/assets/stripe-simulation-demo.mp4">Watch the demo video</a>
-</video>
+https://github.com/user-attachments/assets/5745a130-9b86-4a45-bcb2-1fa36ec2eb7e
 
 ## Sanitize — keep data safe
 
