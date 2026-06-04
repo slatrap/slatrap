@@ -59,11 +59,12 @@ npm install @nestjs/common rxjs
 
 ## Try the full stack locally
 
-This repository includes a demo NestJS app that wires sanitize + emit into Slack alerts and database persistence (with optional Redis deduplication). See [docs/demo-app.md](docs/demo-app.md).
+This repository includes a demo NestJS app that wires sanitize + emit into Slack alerts and database persistence (with optional Redis deduplication). Run **`docker compose up --build`** for the full stack — see [docs/demo-app.md](docs/demo-app.md).
 
 ## Develop in this monorepo
 
 ```bash
+docker compose up --build
 npm run build:slatrap
 npm run test:slatrap
 npm run test:core

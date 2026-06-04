@@ -14,11 +14,32 @@ npm install
 npm run build
 ```
 
-## Infrastructure
+## One-command dev stack (Docker)
+
+Starts **Postgres**, **Redis**, runs **migrations**, then **Nest** (`start:dev`), **Prisma Studio**, and **Stripe CLI** (if `STRIPE_SECRET_KEY` is set):
+
+```bash
+npm install
+cp .env.example .env   # set APP_PROFILE=simulation, SIMULATION_INTERNAL_TOKEN, etc.
+docker compose up --build
+```
+
+Stop everything with `docker compose down`.
+
+`slatrap-migrate` showing **Exited** is normal — it runs `prisma migrate deploy` once and stops. `dev` and `prisma-studio` should stay **Up**.
+
+| URL | Service |
+| --- | --- |
+| http://localhost:3000 | Nest API |
+| http://localhost:5555 | Prisma Studio |
+| localhost:5432 | Postgres |
+| localhost:6379 | Redis |
+
+**Infra only** (db + redis, run the app on your host):
 
 ```bash
 npm run dev:infra
-npm run dev:infra:down   # stop
+npm run dev:infra:down
 ```
 
 ## Environment
@@ -35,13 +56,17 @@ REDIS_PORT=6379
 
 ## Database
 
+Migrations run automatically when using `docker compose up`. To run manually on the host:
+
 ```bash
 npx prisma migrate deploy
 ```
 
-## Run the app
+## Run the app (without Docker dev stack)
 
 ```bash
+npm run dev:infra
+npx prisma migrate deploy
 npm run start:dev
 ```
 
@@ -62,11 +87,13 @@ curl -X POST "http://localhost:3000/plaid/no-accounts" \
 
 ## Stripe webhooks (local)
 
+Included in `docker compose up` via the `stripe-cli` container when `STRIPE_SECRET_KEY` is in `.env`. Copy the webhook signing secret from the CLI output into `STRIPE_WEBHOOK_SECRET`, then restart the `dev` service if needed.
+
+Or run on the host only:
+
 ```bash
 npm run stripe:listen
 ```
-
-Requires `STRIPE_WEBHOOK_SECRET` and `STRIPE_SECRET_KEY` in `.env`.
 
 ## Tests
 

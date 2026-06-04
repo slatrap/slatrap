@@ -1,19 +1,96 @@
 services:
   db:
     image: postgres:15
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: nest_db
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d nest_db']
+      interval: 2s
+      timeout: 5s
+      retries: 15
 
   redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - '6379:6379'
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - dev_node_modules:/app/node_modules
+    environment:
+      DATABASE_URL: postgresql://postgres:mysecretpassword@db:5432/nest_db?schema=public
+    command: npx prisma migrate deploy
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - dev_node_modules:/app/node_modules
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:mysecretpassword@db:5432/nest_db?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command: npm run start:dev
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  prisma-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - dev_node_modules:/app/node_modules
+    ports:
+      - '5555:5555'
+    environment:
+      DATABASE_URL: postgresql://postgres:mysecretpassword@db:5432/nest_db?schema=public
+    command: npx prisma studio --browser none --port 5555
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  stripe-cli:
+    image: stripe/stripe-cli:latest
+    environment:
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY:-}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        if [ -z "$$STRIPE_API_KEY" ]; then
+          echo "STRIPE_SECRET_KEY not set — skipping stripe listen (webhooks will not forward).";
+          exec tail -f /dev/null;
+        fi
+        exec stripe listen --forward-to http://dev:3000/stripe/webhook --skip-verify
+    depends_on:
+      - dev
+    restart: unless-stopped
 
 volumes:
   pgdata:
+  dev_node_modules:
