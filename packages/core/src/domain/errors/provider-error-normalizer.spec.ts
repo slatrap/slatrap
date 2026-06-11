@@ -77,7 +77,7 @@ describe('normalizeFintechPayload', () => {
     expect(result.errorMessage).toBe('Bad request');
   });
 
-  it('detects stripe payload shape and reads current alias mapping', () => {
+  it('detects stripe payload shape and maps type/code fields', () => {
     const payload = {
       type: 'card_error',
       code: 'card_declined',
@@ -89,10 +89,27 @@ describe('normalizeFintechPayload', () => {
     const result = normalizeFintechPayload(payload);
 
     expect(result.provider).toBe('stripe');
-    expect(result.errorType).toBe('card_declined');
-    expect(result.errorCode).toBeUndefined();
+    expect(result.errorType).toBe('card_error');
+    expect(result.errorCode).toBe('card_declined');
     expect(result.errorMessage).toBe('Your card was declined.');
     expect(result.requestId).toBe('req_stripe_01');
     expect(result.userId).toBe('user_stripe_01');
+  });
+
+  it('maps stripe timeout code to errorCode for stable dedup fingerprints', () => {
+    const payload = {
+      stripe: {
+        type: 'api_connection_error',
+        code: 'timeout',
+        message: 'Stripe API request timed out after 300ms',
+      },
+    };
+
+    const result = normalizeFintechPayload(payload);
+
+    expect(result.provider).toBe('stripe');
+    expect(result.errorType).toBe('api_connection_error');
+    expect(result.errorCode).toBe('timeout');
+    expect(result.errorMessage).toBe('Stripe API request timed out after 300ms');
   });
 });
