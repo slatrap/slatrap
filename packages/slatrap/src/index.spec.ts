@@ -18,6 +18,33 @@ describe('Slatrap', () => {
     warnSpy.mockRestore();
   });
 
+  it('normalizes axios timeout errors before emit', async () => {
+    const emit = jest.fn();
+    const slatrap = createSlatrap({ emit });
+    const interceptor = createAxiosResponseErrorInterceptor(slatrap, {
+      defaultProvider: 'stripe',
+      resolveEndpoint: () => '/payment_intents',
+      resolveTimeoutMs: () => 20_000,
+    });
+    const error = Object.assign(new Error('timeout of 20000ms exceeded'), {
+      code: 'ECONNABORTED',
+      config: { timeout: 20_000 },
+    });
+
+    await expect(interceptor(error)).rejects.toBe(error);
+
+    expect(emit).toHaveBeenCalledWith({
+      provider: 'stripe',
+      endpoint: '/payment_intents',
+      statusCode: 504,
+      providerPayload: {
+        error_type: 'timeout',
+        code: 'timeout',
+        message: 'HTTP request timed out after 20000ms',
+      },
+    });
+  });
+
   it('sanitizes and emits through the axios response interceptor helper', async () => {
     const emit = jest.fn();
     const slatrap = createSlatrap({ emit });

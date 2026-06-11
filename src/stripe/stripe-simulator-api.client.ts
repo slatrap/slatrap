@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { fetchWithTimeout } from '../../packages/slatrap/src/http/http-timeout';
 import { type StripeSimulationSpec } from './stripe-simulator.definitions';
+import {
+  readStripeHttpTimeoutMs,
+  toStripeHttpTimeoutError,
+} from './stripe-http.utils';
+
+const STRIPE_PAYMENT_INTENTS_URL = 'https://api.stripe.com/v1/payment_intents';
 
 @Injectable()
 export class StripeSimulatorApiClient {
@@ -24,13 +31,17 @@ export class StripeSimulatorApiClient {
       body.set('metadata[start]', String(startedAt));
     }
 
-    const response = await fetch('https://api.stripe.com/v1/payment_intents', {
+    const timeoutMs = readStripeHttpTimeoutMs(this.configService);
+
+    const response = await fetchWithTimeout(STRIPE_PAYMENT_INTENTS_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${secretKey}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body,
+      timeoutMs,
+      formatTimeoutError: toStripeHttpTimeoutError,
     });
 
     const data: unknown = await response.json();

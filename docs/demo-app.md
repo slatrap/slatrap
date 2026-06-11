@@ -28,12 +28,12 @@ Stop everything with `docker compose down`.
 
 `slatrap-migrate` showing **Exited** is normal — it runs `prisma migrate deploy` once and stops. `dev` and `prisma-studio` should stay **Up**.
 
-| URL | Service |
-| --- | --- |
-| http://localhost:3000 | Nest API |
+| URL                   | Service       |
+| --------------------- | ------------- |
+| http://localhost:3000 | Nest API      |
 | http://localhost:5555 | Prisma Studio |
-| localhost:5432 | Postgres |
-| localhost:6379 | Redis |
+| localhost:5432        | Postgres      |
+| localhost:6379        | Redis         |
 
 **Infra only** (db + redis, run the app on your host):
 
@@ -84,6 +84,15 @@ curl -X POST "http://localhost:3000/plaid/no-accounts" \
 ```
 
 `SIMULATION_ENABLED` only enables the Plaid auto-cron; manual endpoints work without it.
+
+### Stripe simulation routes
+
+| POST                                                      | Result                                                                  |
+| --------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `/stripe/account-closed`, `/stripe/insufficient-funds`, … | Real Stripe call → decline (`402`) when `STRIPE_HTTP_TIMEOUT_MS` allows |
+| `/stripe/timeout`                                         | Instant timeout (`504`, `api_connection_error`) — no Stripe call        |
+
+Set `STRIPE_HTTP_TIMEOUT_MS` in `.env` (default `30000`) to control outbound timeouts. Restart `dev` after changing it.
 
 ## Stripe webhooks (local)
 

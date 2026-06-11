@@ -43,4 +43,10 @@ export class StripeController {
   simulateFraudulent() {
     return this.stripeSimulator.triggerFraudulentError();
   }
+
+  @Post('timeout')
+  @HttpCode(504)
+  simulateTimeout() {
+    return this.stripeSimulator.triggerTimeoutError();
+  }
 }
