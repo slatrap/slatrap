@@ -92,8 +92,8 @@ describe('FintechErrorCaptureService', () => {
     expect(itemMetadataService.resolve).not.toHaveBeenCalled();
     expect(result).toEqual({
       normalizedProvider: 'stripe',
-      errorCode: undefined,
-      errorType: 'card_declined',
+      errorCode: 'card_declined',
+      errorType: 'card_error',
       errorMessage: 'Card declined',
       requestId: 'req_stripe_01',
       endpoint: '/stripe/charge',

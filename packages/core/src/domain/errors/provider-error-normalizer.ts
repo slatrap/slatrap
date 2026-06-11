@@ -16,8 +16,12 @@ function normalizeFintechPayload(
     provider:
       provider ?? nestedPayload?.provider ?? detectProvider(payloadRecord),
     payload: payloadValue,
-    errorCode: readString(payloadRecord, ['error_code', 'decline_code']),
-    errorType: readString(payloadRecord, ['error_type', 'code']),
+    errorCode: readString(payloadRecord, [
+      'error_code',
+      'decline_code',
+      'code',
+    ]),
+    errorType: readString(payloadRecord, ['error_type', 'type']),
     errorMessage: readString(payloadRecord, ['error_message', 'message']),
     requestId: readString(payloadRecord, ['request_id', 'requestId']),
     userId: readString(payloadRecord, ['user_id', 'userId']),

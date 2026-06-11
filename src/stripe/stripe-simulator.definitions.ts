@@ -103,4 +103,9 @@ export const STRIPE_SIMULATIONS = {
     successMessage: 'Stripe fraudulent simulation failed as expected',
     buildBody: buildCardPaymentIntentBody('pm_card_radarBlock', 'card'),
   },
+  timeout: {
+    endpoint: 'stripe/timeout',
+    successMessage: 'Stripe timeout simulation failed as expected',
+    buildBody: () => new URLSearchParams(),
+  },
 } satisfies Record<string, StripeSimulationSpec>;

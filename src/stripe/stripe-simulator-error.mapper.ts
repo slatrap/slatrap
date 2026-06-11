@@ -4,6 +4,7 @@ import { type StripeErrorObject } from './stripe-simulator.definitions';
 const SYNC_STRIPE_ERROR_TYPES = new Set([
   'invalid_request_error',
   'authentication_error',
+  'api_connection_error',
 ]);
 
 type StripeErrorResponse = {

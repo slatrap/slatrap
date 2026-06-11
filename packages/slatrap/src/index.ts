@@ -16,6 +16,10 @@ import {
   toProviderErrorEvent,
 } from './core/slatrap-event-mappers';
 import { sanitizeBeforeEmit } from './core/slatrap-emit-guard';
+import {
+  type AxiosErrorInterceptorOptions,
+  resolveEmitPayloadForHttpError,
+} from './http/http-timeout';
 
 export type {
   ConfigurableSlatrap,
@@ -72,9 +76,11 @@ export function createSlatrap(options: SlatrapOptions): SlatrapApi {
 
 export function createAxiosResponseErrorInterceptor(
   slatrap: SlatrapApi = Slatrap,
+  options?: AxiosErrorInterceptorOptions,
 ) {
   return (error: unknown): Promise<never> => {
-    const cleanData = slatrap.sanitize(error);
+    const payload = resolveEmitPayloadForHttpError(error, options);
+    const cleanData = slatrap.sanitize(payload);
     void slatrap.emit(cleanData);
 
     if (error instanceof Error) {
@@ -127,3 +133,23 @@ export {
   type SanitizedValue,
   type SanitizerOptions,
 } from './sanitization/sanitizer';
+
+export type {
+  AxiosErrorInterceptorOptions,
+  FetchWithTimeoutInit,
+  HttpTimeoutEmitInput,
+  HttpTimeoutTransportError,
+} from './http/http-timeout';
+
+export {
+  buildHttpTimeoutEmitPayload,
+  buildHttpTimeoutMessage,
+  buildHttpTimeoutTransportError,
+  DEFAULT_HTTP_TIMEOUT_MS,
+  fetchWithTimeout,
+  HTTP_TIMEOUT_STATUS_CODE,
+  isHttpTimeoutError,
+  parseHttpTimeoutMs,
+  resolveAxiosTimeoutMs,
+  resolveEmitPayloadForHttpError,
+} from './http/http-timeout';

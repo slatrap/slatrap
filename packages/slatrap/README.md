@@ -203,7 +203,9 @@ Whitelisted top-level fields (e.g. `provider`, `endpoint`, `statusCode`, `provid
 | `Slatrap.sanitize` / `Slatrap.emit`                    | Global sanitize + emit API                                                                                                                            |
 | `configureSlatrap`                                     | Set global `emit` handler and redaction defaults (call once at startup)                                                                               |
 | `createSlatrap`                                        | Non-global instance with its own handler                                                                                                              |
-| `createAxiosResponseErrorInterceptor`                  | Axios error middleware (calls `emit` after sanitize)                                                                                                  |
+| `createAxiosResponseErrorInterceptor`                  | Axios error middleware; normalizes timeouts before `emit` (optional `defaultProvider`, `resolveEndpoint`)                                           |
+| `isHttpTimeoutError` / `buildHttpTimeoutEmitPayload`   | Detect HTTP timeouts and build a provider-agnostic emit payload (`504`, `error_type: timeout`)                                                        |
+| `fetchWithTimeout`                                     | `fetch` with `AbortSignal.timeout`; optional `formatTimeoutError` for provider-specific transport errors                                            |
 | `@slatrap/slatrap/nestjs` → `ProviderErrorInterceptor` | Nest HTTP interceptor (peer: `@nestjs/common`, `rxjs`)                                                                                                |
 | `configureSlatrapForCoreInspector`                     | Map emits to your event bus by event name                                                                                                             |
 

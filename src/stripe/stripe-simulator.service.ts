@@ -1,6 +1,10 @@
 import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StripeSimulatorApiClient } from './stripe-simulator-api.client';
+import {
+  readStripeHttpTimeoutMs,
+  toStripeHttpTimeoutError,
+} from './stripe-http.utils';
 import { StripeSimulatorErrorMapper } from './stripe-simulator-error.mapper';
 import { StripeSimulatorEventPublisher } from './stripe-simulator-event.publisher';
 import {
@@ -17,7 +21,7 @@ export class StripeSimulatorService {
     private readonly stripeSimulatorApiClient: StripeSimulatorApiClient,
     private readonly stripeSimulatorErrorMapper: StripeSimulatorErrorMapper,
     private readonly stripeSimulatorEventPublisher: StripeSimulatorEventPublisher,
-  ) {}
+  ) { }
 
   async triggerInsufficientFundsError(): Promise<never> {
     return this.triggerDeclinedPaymentIntent(
@@ -49,6 +53,17 @@ export class StripeSimulatorService {
     return this.triggerDeclinedPaymentIntent(STRIPE_SIMULATIONS.fraudulent);
   }
 
+  async triggerTimeoutError(): Promise<never> {
+    const start = Date.now();
+    const timeoutMs = readStripeHttpTimeoutMs(this.configService);
+
+    return this.handleSimulationFailure(
+      STRIPE_SIMULATIONS.timeout,
+      toStripeHttpTimeoutError(timeoutMs),
+      start,
+    );
+  }
+
   private async triggerDeclinedPaymentIntent(
     simulation: StripeSimulationSpec,
   ): Promise<never> {
@@ -68,39 +83,50 @@ export class StripeSimulatorService {
         `Stripe ${simulation.endpoint} simulation unexpectedly succeeded`,
       );
     } catch (error: unknown) {
-      const mapped = this.stripeSimulatorErrorMapper.map(error);
-      const stripeError = mapped.stripeError;
-      const latency = Date.now() - start;
-      const httpStatus = mapped.httpStatus;
-      const requestId = mapped.requestId;
+      return this.handleSimulationFailure(simulation, error, start);
+    }
+  }
 
-      if (requestId) {
-        stripeError.request_id = requestId;
-      }
+  private async handleSimulationFailure(
+    simulation: StripeSimulationSpec,
+    error: unknown,
+    start: number,
+  ): Promise<never> {
+    const externalRefId = this.configService.get<string>(
+      'STRIPE_EXTERNAL_REF_ID',
+    );
+    const mapped = this.stripeSimulatorErrorMapper.map(error);
+    const stripeError = mapped.stripeError;
+    const latency = Date.now() - start;
+    const httpStatus = mapped.httpStatus;
+    const requestId = mapped.requestId;
 
-      const stripePayload = {
-        ...stripeError,
-        ...(externalRefId ? { userId: externalRefId } : {}),
-      };
+    if (requestId) {
+      stripeError.request_id = requestId;
+    }
 
-      this.stripeSimulatorEventPublisher.publishProviderError({
-        shouldEmitProviderEvent: mapped.shouldEmitProviderEvent,
+    const stripePayload = {
+      ...stripeError,
+      ...(externalRefId ? { userId: externalRefId } : {}),
+    };
+
+    this.stripeSimulatorEventPublisher.publishProviderError({
+      shouldEmitProviderEvent: mapped.shouldEmitProviderEvent,
+      endpoint: simulation.endpoint,
+      statusCode: httpStatus,
+      providerPayload: stripePayload,
+      latency,
+    });
+
+    this.logger.warn(
+      {
         endpoint: simulation.endpoint,
         statusCode: httpStatus,
-        providerPayload: stripePayload,
         latency,
-      });
+      },
+      simulation.successMessage,
+    );
 
-      this.logger.warn(
-        {
-          endpoint: simulation.endpoint,
-          statusCode: httpStatus,
-          latency,
-        },
-        simulation.successMessage,
-      );
-
-      throw new HttpException({ stripe: stripePayload }, httpStatus);
-    }
+    throw new HttpException({ stripe: stripePayload }, httpStatus);
   }
 }

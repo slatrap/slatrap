@@ -14,6 +14,7 @@ const appValidationSchema = Joi.object({
   STRIPE_SECRET_KEY: Joi.string().optional(),
   STRIPE_WEBHOOK_SECRET: Joi.string().optional(),
   STRIPE_EXTERNAL_REF_ID: Joi.string().optional(),
+  STRIPE_HTTP_TIMEOUT_MS: Joi.number().integer().min(1000).optional(),
   SLACK_WEBHOOK_URL: Joi.string().uri().optional(),
   REDIS_HOST: Joi.string().optional().allow(''),
   REDIS_PORT: Joi.number().port().default(6379),
