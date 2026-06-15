@@ -32,6 +32,10 @@ const appValidationSchema = Joi.object({
   SIMULATION_INSTITUTION_ID: Joi.string().default('ins_109508'),
   SIMULATION_INSTITUTION_NAME: Joi.string().optional(),
   ERROR_DEDUP_WINDOW_SECONDS: Joi.number().optional(),
+  PLAID_LATENCY_THRESHOLD_MS: Joi.number().integer().min(1).optional(),
+  PLAID_SIMULATION_SLOW_MS: Joi.number().integer().min(1).optional(),
+  DEFAULT_LATENCY_THRESHOLD_MS: Joi.number().integer().min(1).optional(),
+  LATENCY_INCIDENT_WINDOW_SECONDS: Joi.number().integer().min(1).optional(),
 });
 
 export function createAppCoreImports() {

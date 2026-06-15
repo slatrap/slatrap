@@ -153,3 +153,10 @@ export {
   resolveAxiosTimeoutMs,
   resolveEmitPayloadForHttpError,
 } from './http/http-timeout';
+
+export type { ProviderLatencyEmitInput } from './core/provider-latency-emit';
+
+export {
+  buildProviderLatencyEmitPayload,
+  PROVIDER_LATENCY_EVENT_NAME,
+} from './core/provider-latency-emit';

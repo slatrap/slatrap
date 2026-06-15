@@ -4,6 +4,8 @@ export * from './config/inspector-core.constants';
 export * from './database/prisma.service';
 export * from './application/services/provider-error-capture.service';
 export * from './application/services/error-deduplication.service';
+export * from './application/services/latency-tracking.service';
+export * from './application/services/latency-incident.service';
 export * from './domain/errors/provider-error-normalizer';
 export * from './infrastructure/notifications/slack-queue';
 export * from './infrastructure/eventing/event-bus.service';

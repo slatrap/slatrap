@@ -6,6 +6,15 @@ export type ProviderErrorInspectionEvent = {
   latency?: number;
 };
 
+export type ProviderLatencyInspectionEvent = {
+  provider: string;
+  endpoint?: string;
+  latencyMs: number;
+  success: boolean;
+  statusCode?: number | null;
+  metadata?: Record<string, unknown>;
+};
+
 export type PlaidItemCreatedEvent = {
   itemId?: string;
   institutionId?: string;

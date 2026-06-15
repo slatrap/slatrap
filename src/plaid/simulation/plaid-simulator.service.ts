@@ -52,4 +52,11 @@ export class PlaidSimulatorService {
       options,
     );
   }
+
+  triggerSlowResponse(
+    delayMs: number,
+    options?: PlaidSimulationOptions,
+  ): Promise<{ ok: true; latencyMs: number }> {
+    return this.simulationErrorService.triggerSlowResponse(delayMs, options);
+  }
 }

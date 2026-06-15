@@ -85,6 +85,21 @@ curl -X POST "http://localhost:3000/plaid/no-accounts" \
 
 `SIMULATION_ENABLED` only enables the Plaid auto-cron; manual endpoints work without it.
 
+### Plaid latency incidents
+
+Set `PLAID_LATENCY_THRESHOLD_MS` (default in `.env.example`: `2000`). Outbound Plaid simulation calls emit `provider.latency` metrics; spikes above the threshold create grouped `latency_incidents` rows and a Slack alert (with `latencyMs` and `thresholdMs`).
+
+Test with:
+
+```bash
+curl -X POST "http://localhost:3000/plaid/slow-response" \
+  -H "x-simulation-token: your-dev-token" \
+  -H "Content-Type: application/json" \
+  -d '{"delayMs": 2500}'
+```
+
+Repeated slow calls within `LATENCY_INCIDENT_WINDOW_SECONDS` increment the same incident count (Slack fires once).
+
 ### Stripe simulation routes
 
 | POST                                                      | Result                                                                  |
