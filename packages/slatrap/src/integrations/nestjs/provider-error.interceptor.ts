@@ -70,19 +70,13 @@ export class ProviderErrorInterceptor implements NestInterceptor {
           return throwError(() => error);
         }
 
-        const payloadLatency =
-          this.isRecord(responsePayload) &&
-          typeof responsePayload['latency'] === 'number'
-            ? responsePayload['latency']
-            : undefined;
-
         void Slatrap.emit(
           Slatrap.sanitize({
             provider: this.detectProvider(responsePayload),
             endpoint,
             statusCode: this.readStatusCode(error),
             providerPayload: Slatrap.sanitize(responsePayload),
-            latency: payloadLatency ?? Date.now() - startedAt,
+            startedAt,
           }),
         );
 

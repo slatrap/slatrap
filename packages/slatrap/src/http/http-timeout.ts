@@ -7,7 +7,7 @@ export type HttpTimeoutEmitInput = {
   provider: string;
   endpoint?: string;
   timeoutMs: number;
-  latency?: number;
+  startedAt?: number;
 };
 
 export type HttpTimeoutTransportError = Error & {
@@ -78,8 +78,8 @@ export function buildHttpTimeoutEmitPayload(
     payload.endpoint = input.endpoint;
   }
 
-  if (input.latency !== undefined) {
-    payload.latency = input.latency;
+  if (input.startedAt !== undefined) {
+    payload.startedAt = input.startedAt;
   }
 
   return payload;

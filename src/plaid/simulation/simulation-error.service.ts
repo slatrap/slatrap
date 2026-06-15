@@ -2,13 +2,13 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Slatrap, emitProviderLatency, sanitizeErrorData } from '../../../packages/slatrap/src';
+import { emitProviderLatency, Slatrap } from '../../../packages/slatrap/src';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
 import { type PlaidSimulationOptions } from './plaid-simulation-options';
 
 @Injectable()
 export class PlaidSimulationErrorService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async triggerSlowResponse(
     delayMs: number,
@@ -19,7 +19,7 @@ export class PlaidSimulationErrorService {
     const latencyMs = Date.now() - start;
 
     if (!options.skipProviderLatencyEmit) {
-      emitProviderLatency(Slatrap, {
+      emitProviderLatency({
         provider: 'plaid',
         endpoint: '/plaid/slow-response',
         startedAt: start,
@@ -40,20 +40,16 @@ export class PlaidSimulationErrorService {
     const { data, status } = this.readScenarioError(scenarioKey);
     const httpStatus = status ?? 400;
 
-    const latency = Date.now() - start;
-
     if (!options.skipProviderErrorEmit) {
-      const enrichedPayload = sanitizeErrorData(
-        withPlaidSimulationMetadata(data, this.configService),
+      void Slatrap.emit(
+        Slatrap.sanitize({
+          provider: 'plaid',
+          endpoint: `/plaid/${scenarioKey}`,
+          statusCode: httpStatus,
+          providerPayload: withPlaidSimulationMetadata(data, this.configService),
+          startedAt: start,
+        }),
       );
-
-      void Slatrap.emit({
-        provider: 'plaid',
-        endpoint: `/plaid/${scenarioKey}`,
-        statusCode: httpStatus,
-        providerPayload: enrichedPayload,
-        latency,
-      });
     }
 
     throw new HttpException({ plaid: data }, httpStatus);
