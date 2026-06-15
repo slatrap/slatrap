@@ -1,12 +1,12 @@
 import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Slatrap } from '../../packages/slatrap/src';
 import { StripeSimulatorApiClient } from './stripe-simulator-api.client';
 import {
   readStripeHttpTimeoutMs,
   toStripeHttpTimeoutError,
 } from './stripe-http.utils';
 import { StripeSimulatorErrorMapper } from './stripe-simulator-error.mapper';
-import { StripeSimulatorEventPublisher } from './stripe-simulator-event.publisher';
 import {
   STRIPE_SIMULATIONS,
   type StripeSimulationSpec,
@@ -20,7 +20,6 @@ export class StripeSimulatorService {
     private readonly configService: ConfigService,
     private readonly stripeSimulatorApiClient: StripeSimulatorApiClient,
     private readonly stripeSimulatorErrorMapper: StripeSimulatorErrorMapper,
-    private readonly stripeSimulatorEventPublisher: StripeSimulatorEventPublisher,
   ) { }
 
   async triggerInsufficientFundsError(): Promise<never> {
@@ -110,13 +109,17 @@ export class StripeSimulatorService {
       ...(externalRefId ? { userId: externalRefId } : {}),
     };
 
-    this.stripeSimulatorEventPublisher.publishProviderError({
-      shouldEmitProviderEvent: mapped.shouldEmitProviderEvent,
-      endpoint: simulation.endpoint,
-      statusCode: httpStatus,
-      providerPayload: stripePayload,
-      latency,
-    });
+    if (mapped.shouldEmitProviderEvent) {
+      void Slatrap.emit(
+        Slatrap.sanitize({
+          provider: 'stripe',
+          endpoint: simulation.endpoint,
+          statusCode: httpStatus,
+          providerPayload: stripePayload,
+          startedAt: start,
+        }),
+      );
+    }
 
     this.logger.warn(
       {

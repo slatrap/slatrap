@@ -6,17 +6,10 @@ export const PROVIDER_LATENCY_EVENT_NAME = 'provider.latency';
 export type ProviderLatencyEmitInput = {
   provider: string;
   endpoint: string;
-  latencyMs: number;
+  startedAt: number;
   success: boolean;
   statusCode?: number | null;
   metadata?: Record<string, unknown>;
-};
-
-export type ProviderLatencyEmitFromStartInput = Omit<
-  ProviderLatencyEmitInput,
-  'latencyMs'
-> & {
-  startedAt: number;
 };
 
 export function buildProviderLatencyEmitPayload(
@@ -25,7 +18,7 @@ export function buildProviderLatencyEmitPayload(
   const payload: Record<string, unknown> = {
     provider: input.provider,
     endpoint: input.endpoint,
-    latencyMs: input.latencyMs,
+    latencyMs: Date.now() - input.startedAt,
     success: input.success,
     statusCode: input.statusCode ?? null,
   };

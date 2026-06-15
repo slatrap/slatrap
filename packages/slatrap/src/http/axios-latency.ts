@@ -2,7 +2,7 @@ import axios, { type AxiosResponse } from 'axios';
 import { type Slatrap as SlatrapApi } from '../core/slatrap.types';
 import {
   buildProviderLatencyEmitPayload,
-  type ProviderLatencyEmitFromStartInput,
+  type ProviderLatencyEmitInput,
 } from '../core/provider-latency-emit';
 
 export type AxiosLatencyHooksOptions = {
@@ -14,16 +14,10 @@ export type AxiosLatencyHooksOptions = {
 
 export function emitProviderLatency(
   slatrap: SlatrapApi,
-  input: ProviderLatencyEmitFromStartInput,
+  input: ProviderLatencyEmitInput,
 ): void {
-  void slatrap.emit(
-    buildProviderLatencyEmitPayload({
-      ...input,
-      latencyMs: Date.now() - input.startedAt,
-    }),
-  );
+  void slatrap.emit(buildProviderLatencyEmitPayload(input));
 }
-
 export function resolveAxiosResponseStatus(error: unknown): number | null {
   if (!axios.isAxiosError(error)) {
     return null;

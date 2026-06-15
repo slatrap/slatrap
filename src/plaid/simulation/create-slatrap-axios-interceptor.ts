@@ -11,7 +11,7 @@ export function createPlaidSimulationAxiosHooks(params: {
   endpoint: string;
   startedAt: number;
 }) {
-  return createAxiosLatencyHooks(Slatrap, {
+  return createAxiosLatencyHooks({
     provider: 'plaid',
     endpoint: params.endpoint,
     startedAt: params.startedAt,
@@ -35,7 +35,7 @@ function createPlaidSimulationErrorInterceptor(params: {
     void Slatrap.emit({
       provider: 'plaid',
       endpoint: params.endpoint,
-      latency: Date.now() - params.startedAt,
+      startedAt: params.startedAt,
       providerPayload,
       statusCode: axiosError?.response?.status ?? null,
     });

@@ -16,6 +16,7 @@ import {
   toProviderErrorEvent,
 } from './core/slatrap-event-mappers';
 import { sanitizeBeforeEmit } from './core/slatrap-emit-guard';
+import { resolveEmitLatency } from './core/resolve-emit-latency';
 import {
   type AxiosErrorInterceptorOptions,
   resolveEmitPayloadForHttpError,
@@ -65,8 +66,9 @@ export function createSlatrap(options: SlatrapOptions): SlatrapApi {
       );
     },
     emit(payload: SanitizedValue) {
+      const payloadWithLatency = resolveEmitLatency(payload);
       const sanitizedPayload = sanitizeBeforeEmit(
-        payload,
+        payloadWithLatency,
         options.redactionText,
       );
       return options.emit(sanitizedPayload);
@@ -154,7 +156,7 @@ export {
   resolveEmitPayloadForHttpError,
 } from './http/http-timeout';
 
-export type { ProviderLatencyEmitFromStartInput, ProviderLatencyEmitInput } from './core/provider-latency-emit';
+export type { ProviderLatencyEmitInput } from './core/provider-latency-emit';
 
 export {
   buildProviderLatencyEmitPayload,
@@ -163,8 +165,19 @@ export {
 
 export type { AxiosLatencyHooksOptions } from './http/axios-latency';
 
-export {
-  createAxiosLatencyHooks,
-  emitProviderLatency,
-  resolveAxiosResponseStatus,
+import {
+  createAxiosLatencyHooks as createAxiosLatencyHooksFor,
+  emitProviderLatency as emitProviderLatencyFor,
+  type AxiosLatencyHooksOptions,
 } from './http/axios-latency';
+import { type ProviderLatencyEmitInput } from './core/provider-latency-emit';
+
+export function emitProviderLatency(input: ProviderLatencyEmitInput): void {
+  emitProviderLatencyFor(Slatrap, input);
+}
+
+export function createAxiosLatencyHooks(options: AxiosLatencyHooksOptions) {
+  return createAxiosLatencyHooksFor(Slatrap, options);
+}
+
+export { resolveAxiosResponseStatus } from './http/axios-latency';

@@ -43,13 +43,13 @@ describe('http-timeout', () => {
           provider: 'stripe',
           endpoint: '/payment_intents',
           timeoutMs: 30_000,
-          latency: 42,
+          startedAt: 1_958,
         }),
       ).toEqual({
         provider: 'stripe',
         endpoint: '/payment_intents',
         statusCode: 504,
-        latency: 42,
+        startedAt: 1_958,
         providerPayload: {
           error_type: 'timeout',
           code: 'timeout',
