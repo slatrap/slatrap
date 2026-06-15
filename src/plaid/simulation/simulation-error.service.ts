@@ -2,9 +2,9 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Slatrap, sanitizeErrorData } from '../../../packages/slatrap/src';
+import { Slatrap, emitProviderLatency, sanitizeErrorData } from '../../../packages/slatrap/src';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
-import { emitPlaidProviderLatency } from './emit-plaid-latency';
+import { type PlaidSimulationOptions } from './plaid-simulation-options';
 
 @Injectable()
 export class PlaidSimulationErrorService {
@@ -12,14 +12,15 @@ export class PlaidSimulationErrorService {
 
   async triggerSlowResponse(
     delayMs: number,
-    options: { skipProviderErrorEmit?: boolean } = {},
+    options: PlaidSimulationOptions = {},
   ): Promise<{ ok: true; latencyMs: number }> {
     const start = Date.now();
     await delay(delayMs);
     const latencyMs = Date.now() - start;
 
-    if (!options.skipProviderErrorEmit) {
-      emitPlaidProviderLatency({
+    if (!options.skipProviderLatencyEmit) {
+      emitProviderLatency(Slatrap, {
+        provider: 'plaid',
         endpoint: '/plaid/slow-response',
         startedAt: start,
         success: true,
@@ -33,7 +34,7 @@ export class PlaidSimulationErrorService {
 
   triggerError(
     scenarioKey: string,
-    options: { skipProviderErrorEmit?: boolean } = {},
+    options: PlaidSimulationOptions = {},
   ): never {
     const start = Date.now();
     const { data, status } = this.readScenarioError(scenarioKey);

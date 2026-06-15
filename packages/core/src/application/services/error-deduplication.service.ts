@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { toPrismaJsonObject } from '../../database/prisma-json';
 import {
   DEDUP_STORE,
   INSPECTOR_CORE_OPTIONS,
@@ -23,14 +24,6 @@ interface ErrorFingerprint {
 interface DeduplicationResult {
   isDuplicate: boolean;
   id?: number;
-}
-
-function toJsonObject(
-  metadata: Record<string, unknown>,
-): Prisma.InputJsonObject {
-  return Object.fromEntries(
-    Object.entries(metadata).filter(([, value]) => value !== undefined),
-  ) as Prisma.InputJsonObject;
 }
 
 @Injectable()
@@ -202,7 +195,7 @@ export class ErrorDeduplicationService {
         endpoint: fp.endpoint,
         latency: fp.latency,
         count: initialCount,
-        metadata: toJsonObject(fp.metadata),
+        metadata: toPrismaJsonObject(fp.metadata) as Prisma.InputJsonObject,
       },
     });
   }

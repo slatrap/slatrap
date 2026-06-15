@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { type Request } from 'express';
 import { PlaidSimulatorService } from './plaid-simulator.service';
+import { type PlaidSimulationOptions } from './plaid-simulation-options';
 import { SimulationInternalTokenGuard } from '../../shared/guards/simulation-internal-token.guard';
 import { SimulationInternalNetworkGuard } from '../../shared/guards/simulation-internal-network.guard';
 
@@ -85,11 +86,12 @@ export class PlaidSimulationController {
     );
   }
 
-  private getSimulationOptions(req: Request): {
-    skipProviderErrorEmit?: boolean;
-  } {
+  private getSimulationOptions(req: Request): PlaidSimulationOptions {
+    const isCron = this.isCronScenarioRequest(req);
+
     return {
-      skipProviderErrorEmit: this.isCronScenarioRequest(req),
+      skipProviderErrorEmit: isCron,
+      skipProviderLatencyEmit: isCron,
     };
   }
 

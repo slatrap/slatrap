@@ -5,26 +5,16 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { getQueueToken } from '@nestjs/bullmq';
 import { ModuleRef } from '@nestjs/core';
-import { getOptionalModuleRef } from '../../infrastructure/nest/get-optional-module-ref';
-import { Queue } from 'bullmq';
 import { ProviderErrorCaptureService } from '../services/provider-error-capture.service';
 import { EventBusService } from '../../infrastructure/eventing/event-bus.service';
 import { PROVIDER_ERROR_EVENT } from '../../domain/events/events.constants';
 import { type ProviderErrorInspectionEvent } from '../../domain/events/events.types';
-import {
-  SLACK_QUEUE_NAME,
-  SLACK_SEND_ALERT_JOB,
-  type SlackAlertJobData,
-} from '../../infrastructure/notifications/slack-queue';
 import { ErrorDeduplicationService } from '../services/error-deduplication.service';
 import { SlackService } from '../../infrastructure/notifications/slack.service';
+import { enqueueSlackAlert } from '../../infrastructure/notifications/slack-alert-enqueue';
 import { INSPECTOR_CORE_OPTIONS } from '../../config/inspector-core.constants';
-import {
-  isRedisConfigured,
-  type InspectorCoreModuleOptions,
-} from '../../config/inspector-core.options';
+import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
 
 @Injectable()
 export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
@@ -102,27 +92,16 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
         2,
       );
 
-      await this.enqueueSlackAlert(text);
+      await enqueueSlackAlert(
+        this.options,
+        this.moduleRef,
+        this.slackService,
+        text,
+      );
     } else if (dedup.isDuplicate) {
       this.logger.debug(
         `Duplicate error suppressed (already seen within 5min): ${dedup.id}`,
       );
     }
-  }
-
-  private async enqueueSlackAlert(text: string): Promise<void> {
-    if (isRedisConfigured(this.options)) {
-      const queue = getOptionalModuleRef<Queue<SlackAlertJobData>>(
-        this.moduleRef,
-        getQueueToken(SLACK_QUEUE_NAME),
-      );
-
-      if (queue) {
-        await queue.add(SLACK_SEND_ALERT_JOB, { text });
-        return;
-      }
-    }
-
-    await this.slackService.sendMessage(text);
   }
 }

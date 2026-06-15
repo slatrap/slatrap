@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PlaidSimulationErrorService } from './simulation-error.service';
-
-type PlaidSimulationOptions = { skipProviderErrorEmit?: boolean };
+import { type PlaidSimulationOptions } from './plaid-simulation-options';
 
 @Injectable()
 export class PlaidSimulatorService {

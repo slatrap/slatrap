@@ -154,9 +154,17 @@ export {
   resolveEmitPayloadForHttpError,
 } from './http/http-timeout';
 
-export type { ProviderLatencyEmitInput } from './core/provider-latency-emit';
+export type { ProviderLatencyEmitFromStartInput, ProviderLatencyEmitInput } from './core/provider-latency-emit';
 
 export {
   buildProviderLatencyEmitPayload,
   PROVIDER_LATENCY_EVENT_NAME,
 } from './core/provider-latency-emit';
+
+export type { AxiosLatencyHooksOptions } from './http/axios-latency';
+
+export {
+  createAxiosLatencyHooks,
+  emitProviderLatency,
+  resolveAxiosResponseStatus,
+} from './http/axios-latency';
