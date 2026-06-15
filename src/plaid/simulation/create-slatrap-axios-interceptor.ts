@@ -1,7 +1,28 @@
-import axios from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { Slatrap } from '../../../packages/slatrap/src';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
+import { emitPlaidProviderLatency } from './emit-plaid-latency';
+
+export function createSlatrapAxiosLatencyHooks(params: {
+  configService: ConfigService;
+  endpoint: string;
+  startedAt: number;
+}) {
+  return {
+    onSuccess: <T>(response: AxiosResponse<T>) => {
+      emitPlaidProviderLatency({
+        endpoint: params.endpoint,
+        startedAt: params.startedAt,
+        success: true,
+        statusCode: response.status,
+      });
+
+      return response;
+    },
+    onError: createSlatrapAxiosInterceptor(params),
+  };
+}
 
 export function createSlatrapAxiosInterceptor(params: {
   configService: ConfigService;
@@ -10,6 +31,14 @@ export function createSlatrapAxiosInterceptor(params: {
 }) {
   return (error: unknown) => {
     const axiosError = axios.isAxiosError(error) ? error : null;
+
+    emitPlaidProviderLatency({
+      endpoint: params.endpoint,
+      startedAt: params.startedAt,
+      success: false,
+      statusCode: axiosError?.response?.status,
+    });
+
     const responsePayload = extractProviderPayload(axiosError?.response?.data);
     const payloadWithMetadata = responsePayload
       ? withPlaidSimulationMetadata(responsePayload, params.configService)

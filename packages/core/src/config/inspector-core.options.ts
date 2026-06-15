@@ -17,6 +17,12 @@ export interface InspectorCoreModuleOptions {
   redis?: InspectorCoreRedisOptions;
   /** Dedup window in seconds. Default: 300 */
   errorDedupWindowSeconds?: number;
+  /** Plaid latency threshold in ms. Spikes above this create incidents. */
+  plaidLatencyThresholdMs?: number;
+  /** Fallback latency threshold for non-Plaid providers. */
+  defaultLatencyThresholdMs?: number;
+  /** Group repeated latency incidents within this window (seconds). Default: error dedup window */
+  latencyIncidentWindowSeconds?: number;
 }
 
 export interface InspectorCoreModuleAsyncOptions<
@@ -66,6 +72,9 @@ export function normalizeInspectorCoreOptions(
         }
       : undefined,
     errorDedupWindowSeconds: options.errorDedupWindowSeconds ?? 300,
+    plaidLatencyThresholdMs: options.plaidLatencyThresholdMs,
+    defaultLatencyThresholdMs: options.defaultLatencyThresholdMs,
+    latencyIncidentWindowSeconds: options.latencyIncidentWindowSeconds,
   };
 }
 
@@ -89,6 +98,15 @@ export function createInspectorCoreOptionsFromConfigService(
     errorDedupWindowSeconds: configService.get<number>(
       'ERROR_DEDUP_WINDOW_SECONDS',
       300,
+    ),
+    plaidLatencyThresholdMs: configService.get<number>(
+      'PLAID_LATENCY_THRESHOLD_MS',
+    ),
+    defaultLatencyThresholdMs: configService.get<number>(
+      'DEFAULT_LATENCY_THRESHOLD_MS',
+    ),
+    latencyIncidentWindowSeconds: configService.get<number>(
+      'LATENCY_INCIDENT_WINDOW_SECONDS',
     ),
   });
 }

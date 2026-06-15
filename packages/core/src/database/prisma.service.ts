@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { INSPECTOR_CORE_OPTIONS } from '../config/inspector-core.constants';
 import { type InspectorCoreModuleOptions } from '../config/inspector-core.options';
 
@@ -52,5 +52,54 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     if (this.client) {
       await this.client.$disconnect();
     }
+  }
+
+  createLatencyObservation(
+    data: Prisma.LatencyObservationCreateInput,
+  ): Promise<{ id: number }> {
+    return this.db.latencyObservation.create({
+      data,
+      select: { id: true },
+    });
+  }
+
+  findRecentLatencyIncident(
+    where: Prisma.LatencyIncidentWhereInput,
+    windowStart: Date,
+  ) {
+    return this.db.latencyIncident.findFirst({
+      where: {
+        ...where,
+        timestamp: { gte: windowStart },
+      },
+      orderBy: { timestamp: 'desc' },
+      select: {
+        id: true,
+        count: true,
+        maxLatencyMs: true,
+        timestamp: true,
+      },
+    });
+  }
+
+  incrementLatencyIncident(
+    id: number,
+    data: Prisma.LatencyIncidentUpdateInput,
+  ): Promise<void> {
+    return this.db.latencyIncident
+      .update({
+        where: { id },
+        data,
+      })
+      .then(() => undefined);
+  }
+
+  createLatencyIncident(
+    data: Prisma.LatencyIncidentCreateInput,
+  ): Promise<{ id: number }> {
+    return this.db.latencyIncident.create({
+      data,
+      select: { id: true },
+    });
   }
 }

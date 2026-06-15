@@ -11,6 +11,8 @@
     "postbuild": "node ./scripts/sync-package-dists.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"packages/**/*.ts\" \"test/**/*.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "postinstall": "prisma generate",
     "dev:infra": "docker compose up -d db redis",
     "dev:infra:down": "docker compose down",
     "start": "nest start",

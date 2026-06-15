@@ -1,4 +1,12 @@
-import { Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { type Request } from 'express';
 import { PlaidSimulatorService } from './plaid-simulator.service';
 import { SimulationInternalTokenGuard } from '../../shared/guards/simulation-internal-token.guard';
@@ -7,7 +15,10 @@ import { SimulationInternalNetworkGuard } from '../../shared/guards/simulation-i
 @Controller('plaid')
 @UseGuards(SimulationInternalNetworkGuard, SimulationInternalTokenGuard)
 export class PlaidSimulationController {
-  constructor(private readonly plaidSimulator: PlaidSimulatorService) {}
+  constructor(
+    private readonly plaidSimulator: PlaidSimulatorService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('no-accounts')
   @HttpCode(200)
@@ -53,6 +64,23 @@ export class PlaidSimulationController {
   @HttpCode(200)
   simulateInvalidAccessToken(@Req() req: Request) {
     return this.plaidSimulator.triggerInvalidAccessTokenError(
+      this.getSimulationOptions(req),
+    );
+  }
+
+  @Post('slow-response')
+  @HttpCode(200)
+  simulateSlowResponse(
+    @Req() req: Request,
+    @Body() body: { delayMs?: number } = {},
+  ) {
+    const delayMs =
+      body.delayMs ??
+      this.configService.get<number>('PLAID_SIMULATION_SLOW_MS') ??
+      2_500;
+
+    return this.plaidSimulator.triggerSlowResponse(
+      delayMs,
       this.getSimulationOptions(req),
     );
   }

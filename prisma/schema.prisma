@@ -35,3 +35,32 @@ model ExternalError {
   @@index([provider, errorCode, endpoint, statusCode, timestamp(sort: Desc)])
   @@map("external_errors")
 }
+
+model LatencyObservation {
+  id         Int      @id @default(autoincrement())
+  provider   String
+  endpoint   String?
+  latencyMs  Int      @map("latency_ms")
+  success    Boolean  @default(true)
+  statusCode Int?     @map("status_code")
+  timestamp  DateTime @default(now())
+  metadata   Json?    @default("{}")
+
+  @@index([provider, endpoint, timestamp(sort: Desc)])
+  @@map("latency_observations")
+}
+
+model LatencyIncident {
+  id           Int      @id @default(autoincrement())
+  provider     String
+  endpoint     String?
+  thresholdMs  Int      @map("threshold_ms")
+  observedMs   Int      @map("observed_ms")
+  maxLatencyMs Int      @map("max_latency_ms")
+  count        Int      @default(1)
+  timestamp    DateTime @default(now())
+  metadata     Json?    @default("{}")
+
+  @@index([provider, endpoint, thresholdMs, timestamp(sort: Desc)])
+  @@map("latency_incidents")
+}

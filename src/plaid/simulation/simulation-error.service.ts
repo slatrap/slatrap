@@ -4,10 +4,32 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Slatrap, sanitizeErrorData } from '../../../packages/slatrap/src';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
+import { emitPlaidProviderLatency } from './emit-plaid-latency';
 
 @Injectable()
 export class PlaidSimulationErrorService {
   constructor(private readonly configService: ConfigService) {}
+
+  async triggerSlowResponse(
+    delayMs: number,
+    options: { skipProviderErrorEmit?: boolean } = {},
+  ): Promise<{ ok: true; latencyMs: number }> {
+    const start = Date.now();
+    await delay(delayMs);
+    const latencyMs = Date.now() - start;
+
+    if (!options.skipProviderErrorEmit) {
+      emitPlaidProviderLatency({
+        endpoint: '/plaid/slow-response',
+        startedAt: start,
+        success: true,
+        statusCode: 200,
+        metadata: { simulatedDelayMs: delayMs },
+      });
+    }
+
+    return { ok: true, latencyMs };
+  }
 
   triggerError(
     scenarioKey: string,
@@ -108,4 +130,8 @@ export class PlaidSimulationErrorService {
 
     return 400;
   }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

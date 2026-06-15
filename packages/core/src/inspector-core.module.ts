@@ -9,7 +9,10 @@ import { PrismaService } from './database/prisma.service';
 import { ProviderErrorCaptureService } from './application/services/provider-error-capture.service';
 import { PlaidItemCreatedListener } from './application/listeners/plaid-item-created.listener';
 import { ProviderErrorListener } from './application/listeners/provider-error.listener';
+import { ProviderLatencyListener } from './application/listeners/provider-latency.listener';
 import { ErrorDeduplicationService } from './application/services/error-deduplication.service';
+import { LatencyIncidentService } from './application/services/latency-incident.service';
+import { LatencyTrackingService } from './application/services/latency-tracking.service';
 import { SlackService } from './infrastructure/notifications/slack.service';
 import { EventBusService } from './infrastructure/eventing/event-bus.service';
 import { ItemMetadataService } from './application/services/item-metadata.service';
@@ -38,9 +41,12 @@ const CORE_PROVIDERS: Provider[] = [
   ItemMetadataService,
   ProviderErrorCaptureService,
   ProviderErrorListener,
+  ProviderLatencyListener,
   PlaidItemCreatedListener,
   SlackService,
   ErrorDeduplicationService,
+  LatencyTrackingService,
+  LatencyIncidentService,
   InspectorCoreSlackQueueBootstrap,
 ];
 
@@ -52,6 +58,8 @@ const CORE_EXPORTS = [
   ItemMetadataService,
   ProviderErrorCaptureService,
   ErrorDeduplicationService,
+  LatencyTrackingService,
+  LatencyIncidentService,
 ];
 
 function createDedupStoreProvider(): Provider {

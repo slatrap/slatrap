@@ -6,7 +6,7 @@ import {
   buildPlaidSimulationScenarios,
   type PlaidSimulationScenario,
 } from './plaid-simulation-scenarios';
-import { createSlatrapAxiosInterceptor } from './create-slatrap-axios-interceptor';
+import { createSlatrapAxiosLatencyHooks } from './create-slatrap-axios-interceptor';
 
 @Injectable()
 export class PlaidSimulationCronService {
@@ -92,13 +92,15 @@ export class PlaidSimulationCronService {
       },
     });
 
+    const latencyHooks = createSlatrapAxiosLatencyHooks({
+      configService: this.configService,
+      endpoint: path,
+      startedAt,
+    });
+
     plaidAxiosInstance.interceptors.response.use(
-      (res) => res,
-      createSlatrapAxiosInterceptor({
-        configService: this.configService,
-        endpoint: path,
-        startedAt,
-      }),
+      latencyHooks.onSuccess,
+      latencyHooks.onError,
     );
 
     return plaidAxiosInstance.post(url, body);
