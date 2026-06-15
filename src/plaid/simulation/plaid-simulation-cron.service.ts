@@ -6,7 +6,7 @@ import {
   buildPlaidSimulationScenarios,
   type PlaidSimulationScenario,
 } from './plaid-simulation-scenarios';
-import { createSlatrapAxiosLatencyHooks } from './create-slatrap-axios-interceptor';
+import { createPlaidSimulationAxiosHooks } from './create-slatrap-axios-interceptor';
 
 @Injectable()
 export class PlaidSimulationCronService {
@@ -92,7 +92,7 @@ export class PlaidSimulationCronService {
       },
     });
 
-    const latencyHooks = createSlatrapAxiosLatencyHooks({
+    const latencyHooks = createPlaidSimulationAxiosHooks({
       configService: this.configService,
       endpoint: path,
       startedAt,

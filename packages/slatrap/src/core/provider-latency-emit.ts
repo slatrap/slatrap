@@ -1,5 +1,6 @@
 import { type SanitizedValue } from '../sanitization/sanitizer';
 
+/** Must match `@slatrap/core` `PROVIDER_LATENCY_EVENT`. */
 export const PROVIDER_LATENCY_EVENT_NAME = 'provider.latency';
 
 export type ProviderLatencyEmitInput = {
@@ -9,6 +10,13 @@ export type ProviderLatencyEmitInput = {
   success: boolean;
   statusCode?: number | null;
   metadata?: Record<string, unknown>;
+};
+
+export type ProviderLatencyEmitFromStartInput = Omit<
+  ProviderLatencyEmitInput,
+  'latencyMs'
+> & {
+  startedAt: number;
 };
 
 export function buildProviderLatencyEmitPayload(

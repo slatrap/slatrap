@@ -5,24 +5,14 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { getQueueToken } from '@nestjs/bullmq';
 import { ModuleRef } from '@nestjs/core';
-import { Queue } from 'bullmq';
 import { PROVIDER_LATENCY_EVENT } from '../../domain/events/events.constants';
 import { type ProviderLatencyInspectionEvent } from '../../domain/events/events.types';
 import { EventBusService } from '../../infrastructure/eventing/event-bus.service';
-import { getOptionalModuleRef } from '../../infrastructure/nest/get-optional-module-ref';
-import {
-  SLACK_QUEUE_NAME,
-  SLACK_SEND_ALERT_JOB,
-  type SlackAlertJobData,
-} from '../../infrastructure/notifications/slack-queue';
+import { enqueueSlackAlert } from '../../infrastructure/notifications/slack-alert-enqueue';
 import { SlackService } from '../../infrastructure/notifications/slack.service';
 import { INSPECTOR_CORE_OPTIONS } from '../../config/inspector-core.constants';
-import {
-  isRedisConfigured,
-  type InspectorCoreModuleOptions,
-} from '../../config/inspector-core.options';
+import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
 import { LatencyIncidentService } from '../services/latency-incident.service';
 import { LatencyTrackingService } from '../services/latency-tracking.service';
 
@@ -118,7 +108,12 @@ export class ProviderLatencyListener implements OnModuleInit, OnModuleDestroy {
         2,
       );
 
-      await this.enqueueSlackAlert(text);
+      await enqueueSlackAlert(
+        this.options,
+        this.moduleRef,
+        this.slackService,
+        text,
+      );
     } else if (incident.isDuplicate) {
       this.logger.debug(
         `Duplicate latency incident suppressed (already seen within window): ${incident.id}`,
@@ -134,21 +129,5 @@ export class ProviderLatencyListener implements OnModuleInit, OnModuleDestroy {
     }
 
     return this.options.defaultLatencyThresholdMs;
-  }
-
-  private async enqueueSlackAlert(text: string): Promise<void> {
-    if (isRedisConfigured(this.options)) {
-      const queue = getOptionalModuleRef<Queue<SlackAlertJobData>>(
-        this.moduleRef,
-        getQueueToken(SLACK_QUEUE_NAME),
-      );
-
-      if (queue) {
-        await queue.add(SLACK_SEND_ALERT_JOB, { text });
-        return;
-      }
-    }
-
-    await this.slackService.sendMessage(text);
   }
 }

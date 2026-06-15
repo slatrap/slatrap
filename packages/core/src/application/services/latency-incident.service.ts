@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { toPrismaJsonObject } from '../../database/prisma-json';
 import {
   DEDUP_STORE,
   INSPECTOR_CORE_OPTIONS,
@@ -24,18 +24,6 @@ export type LatencyIncidentResult = {
   id?: number;
   count?: number;
 };
-
-function toJsonObject(
-  metadata: Record<string, unknown> | undefined,
-): Prisma.InputJsonObject | undefined {
-  if (!metadata) {
-    return undefined;
-  }
-
-  return Object.fromEntries(
-    Object.entries(metadata).filter(([, value]) => value !== undefined),
-  ) as Prisma.InputJsonObject;
-}
 
 @Injectable()
 export class LatencyIncidentService {
@@ -225,7 +213,7 @@ export class LatencyIncidentService {
       observedMs: input.latencyMs,
       maxLatencyMs: input.latencyMs,
       count: initialCount,
-      metadata: toJsonObject({
+      metadata: toPrismaJsonObject({
         success: input.success,
         statusCode: input.statusCode ?? undefined,
         ...input.metadata,
