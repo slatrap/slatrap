@@ -31,6 +31,7 @@ describe('ErrorIncidentService', () => {
     const prisma = {
       isEnabled: true,
       findRecentExternalError: jest.fn().mockResolvedValue(null),
+      countPriorExternalErrorIncidents: jest.fn().mockResolvedValue(0),
       incrementExternalError: jest.fn().mockResolvedValue(undefined),
       createExternalError: jest.fn(),
     };
@@ -62,6 +63,7 @@ describe('ErrorIncidentService', () => {
     expect(dedupStore.get).toHaveBeenCalledWith(
       'error:plaid:ITEM_LOGIN_REQUIRED:ITEM_ERROR:/plaid/transactions/get:401',
     );
+    expect(prisma.countPriorExternalErrorIncidents).toHaveBeenCalled();
     expect(prisma.createExternalError).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: 'PLAID',
@@ -119,27 +121,47 @@ describe('ErrorIncidentService', () => {
     });
   });
 
-  it('escalates severity when a higher-severity error repeats', async () => {
+  it('escalates severity when volume crosses the high threshold', async () => {
     const { service, dedupStore, prisma } = createMocks(300);
     dedupStore.get.mockResolvedValue(
       JSON.stringify({
         id: 555,
-        count: 2,
+        count: 49,
         severity: 'medium',
         firstSeenAt: '2026-05-19T12:00:00.000Z',
+        priorIncidentCount: 0,
       }),
     );
 
     const result = await service.checkAndRegisterIncident({
       ...incidentSummary,
-      severity: 'critical',
+      severity: 'low',
     });
 
     expect(prisma.incrementExternalError).toHaveBeenCalledWith(
       555,
-      expect.objectContaining({ severity: 'critical' }),
+      expect.objectContaining({ severity: 'high' }),
     );
-    expect(result.severity).toBe('critical');
+    expect(result.severity).toBe('high');
+  });
+
+  it('escalates severity for recurring incidents', async () => {
+    const { service, dedupStore, prisma } = createMocks(300);
+    dedupStore.get.mockResolvedValue(null);
+    prisma.countPriorExternalErrorIncidents.mockResolvedValue(2);
+    prisma.createExternalError.mockResolvedValue({ id: 77 });
+
+    const result = await service.checkAndRegisterIncident({
+      ...incidentSummary,
+      severity: 'low',
+    });
+
+    expect(result).toEqual({
+      isDuplicate: false,
+      id: 77,
+      count: 1,
+      severity: 'medium',
+    });
   });
 
   it('skips database writes when persistence is disabled', async () => {
@@ -151,6 +173,7 @@ describe('ErrorIncidentService', () => {
     const prisma = {
       isEnabled: false,
       findRecentExternalError: jest.fn(),
+      countPriorExternalErrorIncidents: jest.fn(),
       incrementExternalError: jest.fn(),
       createExternalError: jest.fn(),
     };
