@@ -25,6 +25,7 @@ const DEFAULT_WHITELIST_CANDIDATES = [
   'endpoint',
   'statusCode',
   'latency',
+  'startedAt',
   'providerPayload',
   'eventName',
   'payload',
