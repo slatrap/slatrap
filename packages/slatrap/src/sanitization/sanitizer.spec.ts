@@ -24,6 +24,24 @@ describe('sanitizeErrorData', () => {
     });
   });
 
+  it('keeps startedAt so emit can derive latency', () => {
+    const sanitized = sanitizeErrorData({
+      provider: 'stripe',
+      endpoint: '/stripe/charges',
+      statusCode: 402,
+      startedAt: 1_700_000_000_000,
+      providerPayload: { type: 'card_error', code: 'card_declined' },
+    });
+
+    expect(sanitized).toEqual({
+      provider: 'stripe',
+      endpoint: '/stripe/charges',
+      statusCode: 402,
+      startedAt: 1_700_000_000_000,
+      providerPayload: { type: 'card_error', code: 'card_declined' },
+    });
+  });
+
   it('allows extending whitelist via options.whitelist', () => {
     const sanitized = sanitizeErrorData(
       {
