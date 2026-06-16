@@ -13,13 +13,21 @@ import {
   type ErrorIncidentSummary,
   type IncidentSeverity,
 } from '../../domain/incidents/incident.types';
-import { maxSeverity } from '../../domain/incidents/severity-rank';
+import { resolveIncidentSeverity } from '../../domain/incidents/incident-severity.resolver';
 
 type CachedErrorIncident = {
   id: number;
   count: number;
   severity: IncidentSeverity;
   firstSeenAt: string;
+  priorIncidentCount: number;
+};
+
+type IncidentWindow = {
+  count: number;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+  priorIncidentCount: number;
 };
 
 @Injectable()
@@ -57,7 +65,16 @@ export class ErrorIncidentService {
 
     if (existingInDb) {
       const nextCount = existingInDb.count + 1;
-      const severity = maxSeverity(existingInDb.severity, summary.severity);
+      const priorIncidentCount = await this.countPriorIncidents(
+        summary,
+        new Date(now.getTime() - dedupWindowSeconds * 1000),
+      );
+      const severity = this.resolveSeverity(summary, {
+        count: nextCount,
+        firstSeenAt: existingInDb.firstSeenAt,
+        lastSeenAt: now,
+        priorIncidentCount,
+      });
 
       await this.updateIncidentRecord(existingInDb.id, summary, severity);
 
@@ -69,7 +86,7 @@ export class ErrorIncidentService {
           count: nextCount,
           severity,
           firstSeenAt: existingInDb.firstSeenAt.toISOString(),
-          lastSeenAt: now.toISOString(),
+          priorIncidentCount,
         }),
       );
 
@@ -81,7 +98,17 @@ export class ErrorIncidentService {
       };
     }
 
-    const created = await this.createIncidentRecord(summary, 1);
+    const priorIncidentCount = await this.countPriorIncidents(
+      summary,
+      new Date(now.getTime() - dedupWindowSeconds * 1000),
+    );
+    const severity = this.resolveSeverity(summary, {
+      count: 1,
+      firstSeenAt: now,
+      lastSeenAt: now,
+      priorIncidentCount,
+    });
+    const created = await this.createIncidentRecord(summary, 1, severity);
 
     await this.dedupStore.setex(
       key,
@@ -89,9 +116,9 @@ export class ErrorIncidentService {
       JSON.stringify({
         id: created.id,
         count: 1,
-        severity: summary.severity,
+        severity,
         firstSeenAt: now.toISOString(),
-        lastSeenAt: now.toISOString(),
+        priorIncidentCount,
       }),
     );
 
@@ -99,7 +126,7 @@ export class ErrorIncidentService {
       isDuplicate: false,
       id: created.id,
       count: 1,
-      severity: summary.severity,
+      severity,
     };
   }
 
@@ -111,12 +138,22 @@ export class ErrorIncidentService {
     now: Date,
   ): Promise<ErrorIncidentResult> {
     const nextCount = existing.count + 1;
-    const severity = maxSeverity(existing.severity, summary.severity);
+    const firstSeenAt = new Date(existing.firstSeenAt);
+    const severity = this.resolveSeverity(summary, {
+      count: nextCount,
+      firstSeenAt,
+      lastSeenAt: now,
+      priorIncidentCount: existing.priorIncidentCount ?? 0,
+    });
     let recordId = existing.id;
 
     if (this.prisma.isEnabled) {
       if (recordId === 0) {
-        const created = await this.createIncidentRecord(summary, nextCount);
+        const created = await this.createIncidentRecord(
+          summary,
+          nextCount,
+          severity,
+        );
         recordId = created.id;
       } else {
         await this.updateIncidentRecord(recordId, summary, severity);
@@ -131,7 +168,7 @@ export class ErrorIncidentService {
         count: nextCount,
         severity,
         firstSeenAt: existing.firstSeenAt,
-        lastSeenAt: now.toISOString(),
+        priorIncidentCount: existing.priorIncidentCount ?? 0,
       }),
     );
 
@@ -143,8 +180,51 @@ export class ErrorIncidentService {
     };
   }
 
+  private resolveSeverity(
+    summary: ErrorIncidentSummary,
+    window: IncidentWindow,
+  ): IncidentSeverity {
+    const dedupWindowSeconds = this.options.errorDedupWindowSeconds ?? 300;
+
+    return resolveIncidentSeverity({
+      baseSeverity: summary.severity,
+      count: window.count,
+      firstSeenAt: window.firstSeenAt,
+      lastSeenAt: window.lastSeenAt,
+      windowSeconds: dedupWindowSeconds,
+      provider: summary.provider,
+      priorIncidentCount: window.priorIncidentCount,
+    });
+  }
+
   private buildRedisKey(summary: ErrorIncidentSummary): string {
     return `error:${summary.provider}:${summary.errorCode}:${summary.errorType}:${summary.endpoint}:${summary.statusCode}`;
+  }
+
+  private buildFingerprintWhere(
+    summary: ErrorIncidentSummary,
+  ): Prisma.ExternalErrorWhereInput {
+    return {
+      provider: summary.provider.toUpperCase(),
+      errorCode: summary.errorCode,
+      errorType: summary.errorType,
+      endpoint: summary.endpoint,
+      statusCode: summary.statusCode,
+    };
+  }
+
+  private async countPriorIncidents(
+    summary: ErrorIncidentSummary,
+    windowStart: Date,
+  ): Promise<number> {
+    if (!this.prisma.isEnabled) {
+      return 0;
+    }
+
+    return this.prisma.countPriorExternalErrorIncidents(
+      this.buildFingerprintWhere(summary),
+      windowStart,
+    );
   }
 
   private async findRecentMatchingIncidentInDb(
@@ -164,13 +244,7 @@ export class ErrorIncidentService {
     const windowStart = new Date(now.getTime() - dedupWindowSeconds * 1000);
 
     const row = await this.prisma.findRecentExternalError(
-      {
-        provider: summary.provider.toUpperCase(),
-        errorCode: summary.errorCode,
-        errorType: summary.errorType,
-        endpoint: summary.endpoint,
-        statusCode: summary.statusCode,
-      },
+      this.buildFingerprintWhere(summary),
       windowStart,
     );
 
@@ -208,6 +282,7 @@ export class ErrorIncidentService {
   private async createIncidentRecord(
     summary: ErrorIncidentSummary,
     initialCount: number,
+    severity: IncidentSeverity,
   ): Promise<{ id: number }> {
     if (!this.prisma.isEnabled) {
       return { id: 0 };
@@ -224,7 +299,7 @@ export class ErrorIncidentService {
       statusCode: summary.statusCode,
       endpoint: summary.endpoint,
       latency: summary.latency ?? 0,
-      severity: summary.severity,
+      severity,
       count: initialCount,
       timestamp: now,
       lastSeenAt: now,

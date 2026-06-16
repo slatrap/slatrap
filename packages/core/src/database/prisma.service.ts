@@ -149,4 +149,16 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
       select: { id: true },
     });
   }
+
+  countPriorExternalErrorIncidents(
+    where: Prisma.ExternalErrorWhereInput,
+    before: Date,
+  ): Promise<number> {
+    return this.db.externalError.count({
+      where: {
+        ...where,
+        timestamp: { lt: before },
+      },
+    });
+  }
 }

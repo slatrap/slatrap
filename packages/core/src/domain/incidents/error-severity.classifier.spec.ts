@@ -1,7 +1,7 @@
 import { classifyErrorSeverity } from './error-severity.classifier';
 
 describe('classifyErrorSeverity', () => {
-  it('classifies provider timeouts as critical', () => {
+  it('classifies a single provider timeout as low', () => {
     expect(
       classifyErrorSeverity({
         provider: 'stripe',
@@ -9,7 +9,7 @@ describe('classifyErrorSeverity', () => {
         errorType: 'api_connection_error',
         statusCode: 504,
       }),
-    ).toBe('critical');
+    ).toBe('low');
   });
 
   it('classifies 5xx responses as critical', () => {

@@ -25,7 +25,7 @@ export type SeverityRule = {
 export const ERROR_SEVERITY_RULES: SeverityRule[] = [
   {
     priority: 100,
-    severity: 'critical',
+    severity: 'low',
     errorCode: ['timeout', 'api_connection_error'],
   },
   {
