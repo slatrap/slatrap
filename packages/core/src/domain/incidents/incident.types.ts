@@ -22,4 +22,5 @@ export type ErrorIncidentResult = {
   id?: number;
   count?: number;
   severity: IncidentSeverity;
+  previousSeverity?: IncidentSeverity;
 };

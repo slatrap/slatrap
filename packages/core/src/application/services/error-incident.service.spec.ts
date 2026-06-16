@@ -118,6 +118,7 @@ describe('ErrorIncidentService', () => {
       id: 42,
       count: 6,
       severity: 'medium',
+      previousSeverity: 'medium',
     });
   });
 
@@ -143,6 +144,7 @@ describe('ErrorIncidentService', () => {
       expect.objectContaining({ severity: 'high' }),
     );
     expect(result.severity).toBe('high');
+    expect(result.previousSeverity).toBe('medium');
   });
 
   it('escalates severity for recurring incidents', async () => {
