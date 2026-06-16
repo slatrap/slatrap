@@ -90,12 +90,12 @@ export class ErrorIncidentService {
         }),
       );
 
-      return {
-        isDuplicate: true,
-        id: existingInDb.id,
-        count: nextCount,
+      return this.buildDuplicateResult(
+        existingInDb.id,
+        nextCount,
+        existingInDb.severity,
         severity,
-      };
+      );
     }
 
     const priorIncidentCount = await this.countPriorIncidents(
@@ -172,11 +172,26 @@ export class ErrorIncidentService {
       }),
     );
 
+    return this.buildDuplicateResult(
+      recordId,
+      nextCount,
+      existing.severity,
+      severity,
+    );
+  }
+
+  private buildDuplicateResult(
+    id: number,
+    count: number,
+    previousSeverity: IncidentSeverity,
+    severity: IncidentSeverity,
+  ): ErrorIncidentResult {
     return {
       isDuplicate: true,
-      id: recordId,
-      count: nextCount,
+      id,
+      count,
       severity,
+      previousSeverity,
     };
   }
 

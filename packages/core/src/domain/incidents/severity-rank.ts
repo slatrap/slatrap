@@ -31,3 +31,10 @@ export function bumpSeverity(
   const nextIndex = Math.min(index + levels, SEVERITY_ORDER.length - 1);
   return SEVERITY_ORDER[nextIndex];
 }
+
+export function hasSeverityIncreased(
+  previous: IncidentSeverity,
+  current: IncidentSeverity,
+): boolean {
+  return SEVERITY_RANK[current] > SEVERITY_RANK[previous];
+}

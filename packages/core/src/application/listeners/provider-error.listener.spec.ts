@@ -106,6 +106,64 @@ describe('ProviderErrorListener', () => {
     expect(slackService.sendMessage).not.toHaveBeenCalled();
   });
 
+  it('includes incident severity in slack alert on first occurrence', async () => {
+    let registeredListener: ((payload: unknown) => void) | undefined;
+    const inspector = {
+      on: jest.fn((eventName: string, listener: (payload: unknown) => void) => {
+        if (eventName === PROVIDER_ERROR_EVENT) {
+          registeredListener = listener;
+        }
+      }),
+      off: jest.fn(),
+    };
+    const capturedError = {
+      normalizedProvider: 'plaid',
+      errorCode: 'ITEM_LOGIN_REQUIRED',
+      errorType: 'ITEM_ERROR',
+      errorMessage: 'Re-auth required',
+      requestId: 'req_01',
+      endpoint: '/plaid/transactions/get',
+      statusCode: 429,
+      metadata: {},
+    };
+    const fintechErrorCaptureService = {
+      captureProviderError: jest.fn().mockResolvedValue(capturedError),
+    };
+    const errorIncidentService = {
+      checkAndRegisterIncident: jest
+        .fn()
+        .mockResolvedValue({ isDuplicate: false, id: 1, count: 1, severity: 'medium' }),
+    };
+    const slackService = createSlackService();
+    const slackQueue = { add: jest.fn().mockResolvedValue(undefined) };
+
+    const listener = new ProviderErrorListener(
+      inspector as unknown as EventBusService,
+      fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
+      errorIncidentService as unknown as ErrorIncidentService,
+      slackService,
+      createModuleRef(slackQueue),
+      defaultOptions,
+    );
+
+    listener.onModuleInit();
+
+    registeredListener?.({
+      provider: 'plaid',
+      endpoint: '/plaid/transactions/get',
+      statusCode: 429,
+      providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
+      latency: 42,
+    });
+    await flushPromises();
+
+    expect(slackQueue.add).toHaveBeenCalledWith(SLACK_SEND_ALERT_JOB, {
+      text: expect.stringMatching(
+        /"type": "error_incident"[\s\S]*"severity": "medium"/,
+      ),
+    });
+  });
+
   it('enqueues slack alert on first error occurrence when redis is configured', async () => {
     let registeredListener: ((payload: unknown) => void) | undefined;
     const inspector = {
@@ -220,7 +278,7 @@ describe('ProviderErrorListener', () => {
     expect(slackService.sendMessage).toHaveBeenCalled();
   });
 
-  it('suppresses slack alert for duplicate errors', async () => {
+  it('suppresses slack alert for duplicate errors without severity escalation', async () => {
     let registeredListener: ((payload: unknown) => void) | undefined;
     const inspector = {
       on: jest.fn((eventName: string, listener: (payload: unknown) => void) => {
@@ -246,7 +304,13 @@ describe('ProviderErrorListener', () => {
     const errorIncidentService = {
       checkAndRegisterIncident: jest
         .fn()
-        .mockResolvedValue({ isDuplicate: true, id: 1, count: 2, severity: 'high' }),
+        .mockResolvedValue({
+          isDuplicate: true,
+          id: 1,
+          count: 2,
+          severity: 'high',
+          previousSeverity: 'high',
+        }),
     };
     const slackService = createSlackService();
     const slackQueue = { add: jest.fn() };
@@ -273,6 +337,70 @@ describe('ProviderErrorListener', () => {
 
     expect(slackQueue.add).not.toHaveBeenCalled();
     expect(slackService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('enqueues escalation slack alert when duplicate severity increases', async () => {
+    let registeredListener: ((payload: unknown) => void) | undefined;
+    const inspector = {
+      on: jest.fn((eventName: string, listener: (payload: unknown) => void) => {
+        if (eventName === PROVIDER_ERROR_EVENT) {
+          registeredListener = listener;
+        }
+      }),
+      off: jest.fn(),
+    };
+    const capturedError = {
+      normalizedProvider: 'stripe',
+      errorCode: 'timeout',
+      errorType: 'api_connection_error',
+      errorMessage: 'Request timed out',
+      requestId: 'req_03',
+      endpoint: '/stripe/charges',
+      statusCode: 504,
+      metadata: {},
+    };
+    const fintechErrorCaptureService = {
+      captureProviderError: jest.fn().mockResolvedValue(capturedError),
+    };
+    const errorIncidentService = {
+      checkAndRegisterIncident: jest
+        .fn()
+        .mockResolvedValue({
+          isDuplicate: true,
+          id: 9,
+          count: 50,
+          severity: 'high',
+          previousSeverity: 'low',
+        }),
+    };
+    const slackService = createSlackService();
+    const slackQueue = { add: jest.fn().mockResolvedValue(undefined) };
+
+    const listener = new ProviderErrorListener(
+      inspector as unknown as EventBusService,
+      fintechErrorCaptureService as unknown as ProviderErrorCaptureService,
+      errorIncidentService as unknown as ErrorIncidentService,
+      slackService,
+      createModuleRef(slackQueue),
+      defaultOptions,
+    );
+
+    listener.onModuleInit();
+    registeredListener?.({
+      provider: 'stripe',
+      endpoint: '/stripe/charges',
+      statusCode: 504,
+      providerPayload: { code: 'timeout', type: 'api_connection_error' },
+      latency: 5000,
+    });
+
+    await flushPromises();
+
+    expect(slackQueue.add).toHaveBeenCalledWith(SLACK_SEND_ALERT_JOB, {
+      text: expect.stringMatching(
+        /"type": "error_incident_escalation"[\s\S]*"severity": "high"[\s\S]*"previousSeverity": "low"/,
+      ),
+    });
   });
 
   it('does not send slack when Slack is not configured', async () => {

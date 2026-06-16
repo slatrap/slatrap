@@ -15,6 +15,7 @@ import { SlackService } from '../../infrastructure/notifications/slack.service';
 import { enqueueSlackAlert } from '../../infrastructure/notifications/slack-alert-enqueue';
 import { buildErrorIncidentSlackAlert } from '../../infrastructure/notifications/slack-error-incident-alert';
 import { buildErrorIncidentSummary } from '../../domain/incidents/build-error-incident-summary';
+import { hasSeverityIncreased } from '../../domain/incidents/severity-rank';
 import { INSPECTOR_CORE_OPTIONS } from '../../config/inspector-core.constants';
 import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
 
@@ -75,10 +76,21 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
     const incident =
       await this.errorIncidentService.checkAndRegisterIncident(summary);
 
-    if (!incident.isDuplicate && this.slackService.isEnabled) {
+    const severityEscalated =
+      incident.isDuplicate &&
+      incident.previousSeverity !== undefined &&
+      hasSeverityIncreased(incident.previousSeverity, incident.severity);
+
+    const shouldNotifySlack =
+      this.slackService.isEnabled &&
+      (!incident.isDuplicate || severityEscalated);
+
+    if (shouldNotifySlack) {
       const text = buildErrorIncidentSlackAlert(summary, {
         incidentId: incident.id,
         occurrenceCount: incident.count,
+        severity: incident.severity,
+        previousSeverity: incident.previousSeverity,
       });
 
       await enqueueSlackAlert(
