@@ -10,7 +10,7 @@ import { ProviderErrorCaptureService } from './application/services/provider-err
 import { PlaidItemCreatedListener } from './application/listeners/plaid-item-created.listener';
 import { ProviderErrorListener } from './application/listeners/provider-error.listener';
 import { ProviderLatencyListener } from './application/listeners/provider-latency.listener';
-import { ErrorDeduplicationService } from './application/services/error-deduplication.service';
+import { ErrorIncidentService } from './application/services/error-incident.service';
 import { LatencyIncidentService } from './application/services/latency-incident.service';
 import { LatencyTrackingService } from './application/services/latency-tracking.service';
 import { SlackService } from './infrastructure/notifications/slack.service';
@@ -44,7 +44,7 @@ const CORE_PROVIDERS: Provider[] = [
   ProviderLatencyListener,
   PlaidItemCreatedListener,
   SlackService,
-  ErrorDeduplicationService,
+  ErrorIncidentService,
   LatencyTrackingService,
   LatencyIncidentService,
   InspectorCoreSlackQueueBootstrap,
@@ -57,7 +57,7 @@ const CORE_EXPORTS = [
   EventBusService,
   ItemMetadataService,
   ProviderErrorCaptureService,
-  ErrorDeduplicationService,
+  ErrorIncidentService,
   LatencyTrackingService,
   LatencyIncidentService,
 ];

@@ -10,9 +10,11 @@ import { ProviderErrorCaptureService } from '../services/provider-error-capture.
 import { EventBusService } from '../../infrastructure/eventing/event-bus.service';
 import { PROVIDER_ERROR_EVENT } from '../../domain/events/events.constants';
 import { type ProviderErrorInspectionEvent } from '../../domain/events/events.types';
-import { ErrorDeduplicationService } from '../services/error-deduplication.service';
+import { ErrorIncidentService } from '../services/error-incident.service';
 import { SlackService } from '../../infrastructure/notifications/slack.service';
 import { enqueueSlackAlert } from '../../infrastructure/notifications/slack-alert-enqueue';
+import { buildErrorIncidentSlackAlert } from '../../infrastructure/notifications/slack-error-incident-alert';
+import { buildErrorIncidentSummary } from '../../domain/incidents/build-error-incident-summary';
 import { INSPECTOR_CORE_OPTIONS } from '../../config/inspector-core.constants';
 import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
 
@@ -33,7 +35,7 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly inspector: EventBusService,
     private readonly fintechErrorCaptureService: ProviderErrorCaptureService,
-    private readonly deduplicationService: ErrorDeduplicationService,
+    private readonly errorIncidentService: ErrorIncidentService,
     private readonly slackService: SlackService,
     private readonly moduleRef: ModuleRef,
     @Inject(INSPECTOR_CORE_OPTIONS)
@@ -65,32 +67,19 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const errorFingerprint = {
-      provider: capturedError.normalizedProvider ?? 'undefined',
-      errorCode: capturedError.errorCode ?? '',
-      endpoint: capturedError.endpoint ?? '',
-      statusCode: capturedError.statusCode ?? 0,
-      latency: event.latency ?? 0,
-      errorType: capturedError.errorType ?? '',
-      errorMessage: capturedError.errorMessage ?? '',
-      requestId: capturedError.requestId,
-      metadata: capturedError.metadata ?? {},
-    };
+    const summary = buildErrorIncidentSummary({
+      captured: capturedError,
+      latency: event.latency,
+    });
 
-    const dedup =
-      await this.deduplicationService.checkAndRegisterError(errorFingerprint);
+    const incident =
+      await this.errorIncidentService.checkAndRegisterIncident(summary);
 
-    if (!dedup.isDuplicate && this.slackService.isEnabled) {
-      const text = JSON.stringify(
-        {
-          providerPayload: event.providerPayload,
-          endpoint: capturedError.endpoint,
-          statusCode: capturedError.statusCode,
-          provider: capturedError.normalizedProvider,
-        },
-        null,
-        2,
-      );
+    if (!incident.isDuplicate && this.slackService.isEnabled) {
+      const text = buildErrorIncidentSlackAlert(summary, {
+        incidentId: incident.id,
+        occurrenceCount: incident.count,
+      });
 
       await enqueueSlackAlert(
         this.options,
@@ -98,9 +87,9 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
         this.slackService,
         text,
       );
-    } else if (dedup.isDuplicate) {
+    } else if (incident.isDuplicate) {
       this.logger.debug(
-        `Duplicate error suppressed (already seen within 5min): ${dedup.id}`,
+        `Duplicate error incident suppressed (already seen within window): ${incident.id}`,
       );
     }
   }

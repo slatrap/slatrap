@@ -7,6 +7,7 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 model Item {
@@ -26,13 +27,16 @@ model ExternalError {
   errorMessage String?
   requestId    String?
   timestamp    DateTime @default(now())
+  lastSeenAt   DateTime @default(now()) @map("last_seen_at")
   latency      Int
+  severity     String   @default("medium")
   metadata     Json?    @default("{}")
   count        Int      @default(1)
   endpoint     String?
   statusCode   Int?
 
-  @@index([provider, errorCode, endpoint, statusCode, timestamp(sort: Desc)])
+  @@index([provider, errorCode, errorType, endpoint, statusCode, timestamp(sort: Desc)])
+  @@index([provider, severity, lastSeenAt(sort: Desc)])
   @@map("external_errors")
 }
 

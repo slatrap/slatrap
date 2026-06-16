@@ -9,6 +9,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { INSPECTOR_CORE_OPTIONS } from '../config/inspector-core.constants';
 import { type InspectorCoreModuleOptions } from '../config/inspector-core.options';
+import {
+  type ExternalErrorCreateData,
+  type ExternalErrorUpdateData,
+  type RecentExternalErrorRow,
+} from './external-error-db.types';
 
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
@@ -99,6 +104,48 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{ id: number }> {
     return this.db.latencyIncident.create({
       data,
+      select: { id: true },
+    });
+  }
+
+  findRecentExternalError(
+    where: Prisma.ExternalErrorWhereInput,
+    windowStart: Date,
+  ): Promise<RecentExternalErrorRow | null> {
+    return this.db.externalError
+      .findFirst({
+        where: {
+          ...where,
+          timestamp: { gte: windowStart },
+        },
+        orderBy: { timestamp: 'desc' },
+      })
+      .then((row) => {
+        if (!row) {
+          return null;
+        }
+
+        return row as unknown as RecentExternalErrorRow;
+      });
+  }
+
+  incrementExternalError(
+    id: number,
+    data: ExternalErrorUpdateData,
+  ): Promise<void> {
+    return this.db.externalError
+      .update({
+        where: { id },
+        data: data as Prisma.ExternalErrorUpdateInput,
+      })
+      .then(() => undefined);
+  }
+
+  createExternalError(
+    data: ExternalErrorCreateData,
+  ): Promise<{ id: number }> {
+    return this.db.externalError.create({
+      data: data as Prisma.ExternalErrorCreateInput,
       select: { id: true },
     });
   }
