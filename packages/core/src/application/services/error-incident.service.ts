@@ -13,7 +13,10 @@ import {
   type ErrorIncidentSummary,
   type IncidentSeverity,
 } from '../../domain/incidents/incident.types';
-import { resolveIncidentSeverity } from '../../domain/incidents/incident-severity.resolver';
+import {
+  resolveIncidentSeverity,
+  resolveIncidentSeverityThresholds,
+} from '../../domain/incidents/incident-severity.resolver';
 
 type CachedErrorIncident = {
   id: number;
@@ -201,15 +204,18 @@ export class ErrorIncidentService {
   ): IncidentSeverity {
     const dedupWindowSeconds = this.options.errorDedupWindowSeconds ?? 300;
 
-    return resolveIncidentSeverity({
-      baseSeverity: summary.severity,
-      count: window.count,
-      firstSeenAt: window.firstSeenAt,
-      lastSeenAt: window.lastSeenAt,
-      windowSeconds: dedupWindowSeconds,
-      provider: summary.provider,
-      priorIncidentCount: window.priorIncidentCount,
-    });
+    return resolveIncidentSeverity(
+      {
+        baseSeverity: summary.severity,
+        count: window.count,
+        firstSeenAt: window.firstSeenAt,
+        lastSeenAt: window.lastSeenAt,
+        windowSeconds: dedupWindowSeconds,
+        provider: summary.provider,
+        priorIncidentCount: window.priorIncidentCount,
+      },
+      resolveIncidentSeverityThresholds(this.options.errorSeverityThresholds),
+    );
   }
 
   private buildRedisKey(summary: ErrorIncidentSummary): string {

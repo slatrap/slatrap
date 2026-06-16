@@ -1,5 +1,6 @@
 import { type ModuleMetadata, type Type } from '@nestjs/common';
 import { type ConfigService } from '@nestjs/config';
+import { type ErrorIncidentSeverityThresholdOptions } from '../domain/incidents/incident-severity.resolver';
 
 export interface InspectorCoreRedisOptions {
   host?: string;
@@ -23,6 +24,8 @@ export interface InspectorCoreModuleOptions {
   defaultLatencyThresholdMs?: number;
   /** Group repeated latency incidents within this window (seconds). Default: error dedup window */
   latencyIncidentWindowSeconds?: number;
+  /** Overrides for dynamic error incident severity thresholds. */
+  errorSeverityThresholds?: ErrorIncidentSeverityThresholdOptions;
 }
 
 export interface InspectorCoreModuleAsyncOptions<
@@ -75,7 +78,49 @@ export function normalizeInspectorCoreOptions(
     plaidLatencyThresholdMs: options.plaidLatencyThresholdMs,
     defaultLatencyThresholdMs: options.defaultLatencyThresholdMs,
     latencyIncidentWindowSeconds: options.latencyIncidentWindowSeconds,
+    errorSeverityThresholds: options.errorSeverityThresholds,
   };
+}
+
+function readOptionalNumber(
+  configService: ConfigService,
+  key: string,
+): number | undefined {
+  const value = configService.get<number | string>(key);
+
+  if (value === undefined || value === '') {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readErrorSeverityThresholdsFromConfig(
+  configService: ConfigService,
+): ErrorIncidentSeverityThresholdOptions | undefined {
+  const thresholds: ErrorIncidentSeverityThresholdOptions = {
+    countHigh: readOptionalNumber(configService, 'ERROR_SEVERITY_COUNT_HIGH'),
+    countElevated: readOptionalNumber(
+      configService,
+      'ERROR_SEVERITY_COUNT_ELEVATED',
+    ),
+    countCritical: readOptionalNumber(
+      configService,
+      'ERROR_SEVERITY_COUNT_CRITICAL',
+    ),
+    frequencyHighPerSec: readOptionalNumber(
+      configService,
+      'ERROR_SEVERITY_FREQUENCY_HIGH_PER_SEC',
+    ),
+    recurrenceMinPriorIncidents: readOptionalNumber(
+      configService,
+      'ERROR_SEVERITY_RECURRENCE_MIN_PRIOR_INCIDENTS',
+    ),
+  };
+
+  const hasValue = Object.values(thresholds).some((value) => value !== undefined);
+  return hasValue ? thresholds : undefined;
 }
 
 /** Maps common env vars to module options (for use inside forRootAsync). */
@@ -108,5 +153,6 @@ export function createInspectorCoreOptionsFromConfigService(
     latencyIncidentWindowSeconds: configService.get<number>(
       'LATENCY_INCIDENT_WINDOW_SECONDS',
     ),
+    errorSeverityThresholds: readErrorSeverityThresholdsFromConfig(configService),
   });
 }

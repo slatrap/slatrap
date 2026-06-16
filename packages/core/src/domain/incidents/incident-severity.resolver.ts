@@ -28,6 +28,30 @@ export const DEFAULT_INCIDENT_SEVERITY_THRESHOLDS: IncidentSeverityThresholds =
     recurrenceMinPriorIncidents: 2,
   };
 
+export type ErrorIncidentSeverityThresholdOptions =
+  Partial<IncidentSeverityThresholds>;
+
+export function resolveIncidentSeverityThresholds(
+  overrides?: ErrorIncidentSeverityThresholdOptions,
+): IncidentSeverityThresholds {
+  return {
+    countHigh:
+      overrides?.countHigh ?? DEFAULT_INCIDENT_SEVERITY_THRESHOLDS.countHigh,
+    countElevated:
+      overrides?.countElevated ??
+      DEFAULT_INCIDENT_SEVERITY_THRESHOLDS.countElevated,
+    countCritical:
+      overrides?.countCritical ??
+      DEFAULT_INCIDENT_SEVERITY_THRESHOLDS.countCritical,
+    frequencyHighPerSec:
+      overrides?.frequencyHighPerSec ??
+      DEFAULT_INCIDENT_SEVERITY_THRESHOLDS.frequencyHighPerSec,
+    recurrenceMinPriorIncidents:
+      overrides?.recurrenceMinPriorIncidents ??
+      DEFAULT_INCIDENT_SEVERITY_THRESHOLDS.recurrenceMinPriorIncidents,
+  };
+}
+
 export function resolveIncidentSeverity(
   input: IncidentSeverityContext,
   thresholds: IncidentSeverityThresholds = DEFAULT_INCIDENT_SEVERITY_THRESHOLDS,
