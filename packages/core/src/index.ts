@@ -13,3 +13,4 @@ export * from './application/services/item-metadata.service';
 export * from './domain/events/events.constants';
 export * from './domain/events/events.types';
 export * from './domain/errors/provider-error.types';
+export * from './domain/incidents';
