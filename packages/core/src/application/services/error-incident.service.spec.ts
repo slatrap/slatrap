@@ -22,7 +22,9 @@ describe('ErrorIncidentService', () => {
     },
   };
 
-  const createMocks = (dedupWindow?: number) => {
+  const createMocks = (
+    options: InspectorCoreModuleOptions = { errorDedupWindowSeconds: 300 },
+  ) => {
     const dedupStore = {
       get: jest.fn(),
       setex: jest.fn().mockResolvedValue(undefined),
@@ -34,10 +36,6 @@ describe('ErrorIncidentService', () => {
       countPriorExternalErrorIncidents: jest.fn().mockResolvedValue(0),
       incrementExternalError: jest.fn().mockResolvedValue(undefined),
       createExternalError: jest.fn(),
-    };
-
-    const options: InspectorCoreModuleOptions = {
-      errorDedupWindowSeconds: dedupWindow,
     };
 
     const service = new ErrorIncidentService(
@@ -54,7 +52,7 @@ describe('ErrorIncidentService', () => {
   });
 
   it('creates a DB record and caches first occurrence when key is not found', async () => {
-    const { service, dedupStore, prisma } = createMocks(300);
+    const { service, dedupStore, prisma } = createMocks({ errorDedupWindowSeconds: 300 });
     dedupStore.get.mockResolvedValue(null);
     prisma.createExternalError.mockResolvedValue({ id: 123 });
 
@@ -92,7 +90,7 @@ describe('ErrorIncidentService', () => {
   });
 
   it('increments existing DB row when cache is empty but a recent match exists', async () => {
-    const { service, dedupStore, prisma } = createMocks(300);
+    const { service, dedupStore, prisma } = createMocks({ errorDedupWindowSeconds: 300 });
     dedupStore.get.mockResolvedValue(null);
     prisma.findRecentExternalError.mockResolvedValue({
       id: 42,
@@ -123,7 +121,7 @@ describe('ErrorIncidentService', () => {
   });
 
   it('escalates severity when volume crosses the high threshold', async () => {
-    const { service, dedupStore, prisma } = createMocks(300);
+    const { service, dedupStore, prisma } = createMocks({ errorDedupWindowSeconds: 300 });
     dedupStore.get.mockResolvedValue(
       JSON.stringify({
         id: 555,
@@ -148,7 +146,7 @@ describe('ErrorIncidentService', () => {
   });
 
   it('escalates severity for recurring incidents', async () => {
-    const { service, dedupStore, prisma } = createMocks(300);
+    const { service, dedupStore, prisma } = createMocks({ errorDedupWindowSeconds: 300 });
     dedupStore.get.mockResolvedValue(null);
     prisma.countPriorExternalErrorIncidents.mockResolvedValue(2);
     prisma.createExternalError.mockResolvedValue({ id: 77 });
@@ -164,6 +162,33 @@ describe('ErrorIncidentService', () => {
       count: 1,
       severity: 'medium',
     });
+  });
+
+  it('uses configurable severity thresholds from module options', async () => {
+    const { service, dedupStore, prisma } = createMocks({
+      errorDedupWindowSeconds: 300,
+      errorSeverityThresholds: { countElevated: 5 },
+    });
+    dedupStore.get.mockResolvedValue(
+      JSON.stringify({
+        id: 777,
+        count: 4,
+        severity: 'low',
+        firstSeenAt: '2026-05-19T12:00:00.000Z',
+        priorIncidentCount: 0,
+      }),
+    );
+
+    const result = await service.checkAndRegisterIncident({
+      ...incidentSummary,
+      severity: 'low',
+    });
+
+    expect(prisma.incrementExternalError).toHaveBeenCalledWith(
+      777,
+      expect.objectContaining({ severity: 'high' }),
+    );
+    expect(result.severity).toBe('high');
   });
 
   it('skips database writes when persistence is disabled', async () => {

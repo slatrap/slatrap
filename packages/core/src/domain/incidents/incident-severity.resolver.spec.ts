@@ -1,4 +1,7 @@
-import { resolveIncidentSeverity } from './incident-severity.resolver';
+import {
+  resolveIncidentSeverity,
+  resolveIncidentSeverityThresholds,
+} from './incident-severity.resolver';
 
 describe('resolveIncidentSeverity', () => {
   const windowStart = new Date('2026-06-16T12:00:00.000Z');
@@ -68,5 +71,32 @@ describe('resolveIncidentSeverity', () => {
         priorIncidentCount: 2,
       }),
     ).toBe('medium');
+  });
+});
+
+describe('resolveIncidentSeverityThresholds', () => {
+  it('returns defaults when no overrides are provided', () => {
+    expect(resolveIncidentSeverityThresholds()).toEqual({
+      countHigh: 10,
+      countElevated: 50,
+      countCritical: 100,
+      frequencyHighPerSec: 1,
+      recurrenceMinPriorIncidents: 2,
+    });
+  });
+
+  it('merges partial overrides with defaults', () => {
+    expect(
+      resolveIncidentSeverityThresholds({
+        countElevated: 5,
+        countCritical: 25,
+      }),
+    ).toEqual({
+      countHigh: 10,
+      countElevated: 5,
+      countCritical: 25,
+      frequencyHighPerSec: 1,
+      recurrenceMinPriorIncidents: 2,
+    });
   });
 });
