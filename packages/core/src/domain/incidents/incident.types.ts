@@ -2,8 +2,7 @@ export type IncidentSeverity =
   | 'critical'
   | 'high'
   | 'medium'
-  | 'low'
-  | 'info';
+  | 'low';
 
 export type ErrorIncidentSummary = {
   provider: string;
@@ -16,4 +15,11 @@ export type ErrorIncidentSummary = {
   requestId?: string;
   latency?: number;
   metadata: Record<string, unknown>;
+};
+
+export type ErrorIncidentResult = {
+  isDuplicate: boolean;
+  id?: number;
+  count?: number;
+  severity: IncidentSeverity;
 };
