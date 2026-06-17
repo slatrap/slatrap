@@ -1,7 +1,8 @@
 import { buildErrorIncidentSummary } from './build-error-incident-summary';
+import { buildErrorIncidentFingerprint } from './incident-fingerprint';
 
 describe('buildErrorIncidentSummary', () => {
-  it('combines severity and exported error fields', () => {
+  it('combines severity, exported error fields, and a fingerprint', () => {
     const summary = buildErrorIncidentSummary({
       captured: {
         normalizedProvider: 'plaid',
@@ -18,6 +19,7 @@ describe('buildErrorIncidentSummary', () => {
         },
       },
       latency: 120,
+      environment: 'simulation',
     });
 
     expect(summary).toEqual({
@@ -35,6 +37,13 @@ describe('buildErrorIncidentSummary', () => {
         institutionId: 'ins_109508',
         institutionName: 'First Platypus Bank',
       },
+      fingerprint: buildErrorIncidentFingerprint({
+        provider: 'plaid',
+        errorCode: 'ITEM_LOGIN_REQUIRED',
+        errorType: 'ITEM_ERROR',
+        endpoint: '/plaid/item-login-required',
+        environment: 'simulation',
+      }),
     });
   });
 });
