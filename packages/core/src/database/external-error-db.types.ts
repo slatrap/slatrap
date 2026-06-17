@@ -21,6 +21,9 @@ export type ExternalErrorCreateData = {
   timestamp: Date;
   lastSeenAt: Date;
   metadata?: Prisma.InputJsonObject;
+  fingerprint: string;
+  fingerprintVersion: number;
+  environment?: string | null;
 };
 
 export type ExternalErrorUpdateData = {

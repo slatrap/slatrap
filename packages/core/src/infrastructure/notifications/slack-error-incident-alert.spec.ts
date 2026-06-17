@@ -38,6 +38,7 @@ describe('buildErrorIncidentSlackAlert', () => {
     expect(alert.severity).toBe('critical');
     expect(alert.previousSeverity).toBeUndefined();
     expect(alert.occurrenceCount).toBe(100);
+    expect(alert.fingerprint).toBe(fingerprint.hash);
   });
 
   it('marks escalations when severity increases on duplicate incidents', () => {

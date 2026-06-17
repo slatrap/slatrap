@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { toPrismaJsonObject } from '../../database/prisma-json';
 import {
@@ -40,13 +39,13 @@ export class ErrorIncidentService {
     private readonly prisma: PrismaService,
     @Inject(INSPECTOR_CORE_OPTIONS)
     private readonly options: InspectorCoreModuleOptions,
-  ) {}
+  ) { }
 
   async checkAndRegisterIncident(
     summary: ErrorIncidentSummary,
   ): Promise<ErrorIncidentResult> {
     const dedupWindowSeconds = this.options.errorDedupWindowSeconds ?? 300;
-    const key = this.buildRedisKey(summary);
+    const key = summary.fingerprint.cacheKey;
     const cached = await this.dedupStore.get(key);
     const now = new Date();
 
@@ -218,22 +217,6 @@ export class ErrorIncidentService {
     );
   }
 
-  private buildRedisKey(summary: ErrorIncidentSummary): string {
-    return `error:${summary.provider}:${summary.errorCode}:${summary.errorType}:${summary.endpoint}:${summary.statusCode}`;
-  }
-
-  private buildFingerprintWhere(
-    summary: ErrorIncidentSummary,
-  ): Prisma.ExternalErrorWhereInput {
-    return {
-      provider: summary.provider.toUpperCase(),
-      errorCode: summary.errorCode,
-      errorType: summary.errorType,
-      endpoint: summary.endpoint,
-      statusCode: summary.statusCode,
-    };
-  }
-
   private async countPriorIncidents(
     summary: ErrorIncidentSummary,
     windowStart: Date,
@@ -243,7 +226,7 @@ export class ErrorIncidentService {
     }
 
     return this.prisma.countPriorExternalErrorIncidents(
-      this.buildFingerprintWhere(summary),
+      summary.fingerprint.hash,
       windowStart,
     );
   }
@@ -265,7 +248,7 @@ export class ErrorIncidentService {
     const windowStart = new Date(now.getTime() - dedupWindowSeconds * 1000);
 
     const row = await this.prisma.findRecentExternalError(
-      this.buildFingerprintWhere(summary),
+      summary.fingerprint.hash,
       windowStart,
     );
 
@@ -324,7 +307,10 @@ export class ErrorIncidentService {
       count: initialCount,
       timestamp: now,
       lastSeenAt: now,
-      metadata: toPrismaJsonObject(summary.metadata) as Prisma.InputJsonObject,
+      metadata: toPrismaJsonObject(summary.metadata),
+      fingerprint: summary.fingerprint.hash,
+      fingerprintVersion: summary.fingerprint.parts.fingerprintVersion,
+      environment: summary.fingerprint.parts.environment,
     });
   }
 }
