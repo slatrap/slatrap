@@ -67,7 +67,7 @@ describe('ErrorIncidentService', () => {
     const result = await service.checkAndRegisterIncident(incidentSummary);
 
     expect(dedupStore.get).toHaveBeenCalledWith(
-      'error:plaid:ITEM_LOGIN_REQUIRED:ITEM_ERROR:/plaid/transactions/get:401',
+      incidentSummary.fingerprint.cacheKey,
     );
     expect(prisma.countPriorExternalErrorIncidents).toHaveBeenCalled();
     expect(prisma.createExternalError).toHaveBeenCalledWith(
@@ -85,6 +85,9 @@ describe('ErrorIncidentService', () => {
         metadata: incidentSummary.metadata,
         timestamp: expect.any(Date),
         lastSeenAt: expect.any(Date),
+        fingerprint: incidentSummary.fingerprint.hash,
+        fingerprintVersion: incidentSummary.fingerprint.parts.fingerprintVersion,
+        environment: incidentSummary.fingerprint.parts.environment,
       }),
     );
     expect(prisma.incrementExternalError).not.toHaveBeenCalled();

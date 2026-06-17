@@ -30,8 +30,8 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
     this.client = this.isEnabled
       ? new PrismaClient({
-          adapter: new PrismaPg(connectionString!),
-        })
+        adapter: new PrismaPg(connectionString!),
+      })
       : null;
   }
 
@@ -109,16 +109,16 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   }
 
   findRecentExternalError(
-    where: Prisma.ExternalErrorWhereInput,
+    fingerprint: string,
     windowStart: Date,
   ): Promise<RecentExternalErrorRow | null> {
     return this.db.externalError
       .findFirst({
         where: {
-          ...where,
-          timestamp: { gte: windowStart },
+          fingerprint,
+          lastSeenAt: { gte: windowStart },
         },
-        orderBy: { timestamp: 'desc' },
+        orderBy: { lastSeenAt: 'desc' },
       })
       .then((row) => {
         if (!row) {
@@ -151,12 +151,12 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   }
 
   countPriorExternalErrorIncidents(
-    where: Prisma.ExternalErrorWhereInput,
+    fingerprint: string,
     before: Date,
   ): Promise<number> {
     return this.db.externalError.count({
       where: {
-        ...where,
+        fingerprint,
         timestamp: { lt: before },
       },
     });

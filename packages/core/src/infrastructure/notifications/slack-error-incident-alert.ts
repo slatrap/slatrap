@@ -35,6 +35,7 @@ export function buildErrorIncidentSlackAlert(
       latency: summary.latency,
       occurrenceCount: context.occurrenceCount,
       metadata: summary.metadata,
+      fingerprint: summary.fingerprint.hash,
     },
     null,
     2,
