@@ -5,4 +5,5 @@ export * from './incident-severity.resolver';
 export * from './error-severity.classifier';
 export * from './incident-fingerprint.types';
 export * from './incident-fingerprint';
+export * from './incident-fingerprint-strategies';
 export * from './build-error-incident-summary';

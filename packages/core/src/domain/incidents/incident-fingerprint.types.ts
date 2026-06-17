@@ -2,7 +2,7 @@ export const INCIDENT_FINGERPRINT_VERSION = 1;
 
 export type ErrorIncidentFingerprintParts = {
   provider: string;
-  errorCategory: string;
+  errorType: string;
   errorCode: string;
   endpoint: string;
   environment: string;
@@ -21,4 +21,5 @@ export type BuildErrorIncidentFingerprintInput = {
   errorType: string;
   endpoint: string;
   environment?: string;
+  metadata?: Record<string, unknown>;
 };

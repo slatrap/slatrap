@@ -30,6 +30,7 @@ export function buildErrorIncidentSummary(
     errorType,
     endpoint,
     environment: input.environment,
+    metadata: input.captured.metadata,
   });
 
   return {

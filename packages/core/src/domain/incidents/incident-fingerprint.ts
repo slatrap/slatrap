@@ -1,26 +1,26 @@
 import { createHash } from 'node:crypto';
 import {
-  INCIDENT_FINGERPRINT_VERSION,
   type BuildErrorIncidentFingerprintInput,
   type ErrorIncidentFingerprint,
   type ErrorIncidentFingerprintParts,
 } from './incident-fingerprint.types';
+import {
+  buildFingerprintStrategyInput,
+  resolveFingerprintStrategy,
+} from './incident-fingerprint-strategies';
 
 export const DEFAULT_FINGERPRINT_ENVIRONMENT = 'unknown';
 
 export function buildDefaultFingerprintParts(
   input: BuildErrorIncidentFingerprintInput,
 ): ErrorIncidentFingerprintParts {
-  return {
-    provider: normalizeFingerprintValue(input.provider),
-    errorCategory: normalizeFingerprintValue(input.errorType) || 'unknown',
-    errorCode: normalizeFingerprintValue(input.errorCode),
-    endpoint: input.endpoint ?? '',
-    environment: normalizeFingerprintValue(
-      input.environment ?? DEFAULT_FINGERPRINT_ENVIRONMENT,
-    ),
-    fingerprintVersion: INCIDENT_FINGERPRINT_VERSION,
-  };
+  const strategyInput = buildFingerprintStrategyInput({
+    ...input,
+    environment: input.environment ?? DEFAULT_FINGERPRINT_ENVIRONMENT,
+  });
+  const strategy = resolveFingerprintStrategy(strategyInput.provider);
+
+  return strategy(strategyInput);
 }
 
 export function serializeFingerprintParts(
@@ -29,7 +29,7 @@ export function serializeFingerprintParts(
   return [
     parts.fingerprintVersion,
     parts.provider,
-    parts.errorCategory,
+    parts.errorType,
     parts.errorCode,
     parts.endpoint,
     parts.environment,
@@ -55,8 +55,4 @@ export function buildErrorIncidentFingerprint(
     hash,
     cacheKey: `error:fp:${hash}`,
   };
-}
-
-function normalizeFingerprintValue(value: string | undefined): string {
-  return value?.trim().toLowerCase() ?? '';
 }
