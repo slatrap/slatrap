@@ -1,7 +1,16 @@
 import { buildErrorIncidentSlackAlert } from './slack-error-incident-alert';
 import { type ErrorIncidentSummary } from '../../domain/incidents/incident.types';
+import { buildErrorIncidentFingerprint } from '../../domain/incidents/incident-fingerprint';
 
 describe('buildErrorIncidentSlackAlert', () => {
+  const fingerprint = buildErrorIncidentFingerprint({
+    provider: 'stripe',
+    errorType: 'api_connection_error',
+    errorCode: 'timeout',
+    endpoint: '/stripe/charges',
+    environment: 'simulation',
+  });
+
   const summary: ErrorIncidentSummary = {
     provider: 'stripe',
     errorCode: 'timeout',
@@ -13,6 +22,7 @@ describe('buildErrorIncidentSlackAlert', () => {
     requestId: 'req_123',
     latency: 5000,
     metadata: { userId: 'user_01' },
+    fingerprint,
   };
 
   it('uses incident severity from context instead of summary', () => {

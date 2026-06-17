@@ -3,6 +3,7 @@ import { ErrorIncidentService } from './error-incident.service';
 import { type DedupStore } from '../../infrastructure/redis/dedup-store';
 import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
 import { type ErrorIncidentSummary } from '../../domain/incidents/incident.types';
+import { buildErrorIncidentFingerprint } from '../../domain/incidents/incident-fingerprint';
 
 describe('ErrorIncidentService', () => {
   const incidentSummary: ErrorIncidentSummary = {
@@ -20,6 +21,13 @@ describe('ErrorIncidentService', () => {
       institutionId: 'ins_109508',
       institutionName: 'First Platypus Bank',
     },
+    fingerprint: buildErrorIncidentFingerprint({
+      provider: 'plaid',
+      errorCode: 'ITEM_LOGIN_REQUIRED',
+      errorType: 'ITEM_ERROR',
+      endpoint: '/plaid/transactions/get',
+      environment: 'simulation',
+    }),
   };
 
   const createMocks = (

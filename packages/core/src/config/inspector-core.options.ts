@@ -26,6 +26,8 @@ export interface InspectorCoreModuleOptions {
   latencyIncidentWindowSeconds?: number;
   /** Overrides for dynamic error incident severity thresholds. */
   errorSeverityThresholds?: ErrorIncidentSeverityThresholdOptions;
+  /** Environment label for incident fingerprints, sourced from APP_PROFILE. */
+  incidentEnvironment?: string;
 }
 
 export interface InspectorCoreModuleAsyncOptions<
@@ -68,17 +70,18 @@ export function normalizeInspectorCoreOptions(
     slackWebhookUrl: options.slackWebhookUrl?.trim() || undefined,
     redis: options.redis
       ? {
-          host: options.redis.host?.trim(),
-          port: options.redis.port,
-          username: options.redis.username?.trim() || undefined,
-          password: options.redis.password,
-        }
+        host: options.redis.host?.trim(),
+        port: options.redis.port,
+        username: options.redis.username?.trim() || undefined,
+        password: options.redis.password,
+      }
       : undefined,
     errorDedupWindowSeconds: options.errorDedupWindowSeconds ?? 300,
     plaidLatencyThresholdMs: options.plaidLatencyThresholdMs,
     defaultLatencyThresholdMs: options.defaultLatencyThresholdMs,
     latencyIncidentWindowSeconds: options.latencyIncidentWindowSeconds,
     errorSeverityThresholds: options.errorSeverityThresholds,
+    incidentEnvironment: options.incidentEnvironment?.trim() || undefined,
   };
 }
 
@@ -134,11 +137,11 @@ export function createInspectorCoreOptionsFromConfigService(
     slackWebhookUrl: configService.get<string>('SLACK_WEBHOOK_URL'),
     redis: redisHost
       ? {
-          host: redisHost,
-          port: configService.get<number>('REDIS_PORT', 6379),
-          username: configService.get<string>('REDIS_USERNAME'),
-          password: configService.get<string>('REDIS_PASSWORD'),
-        }
+        host: redisHost,
+        port: configService.get<number>('REDIS_PORT', 6379),
+        username: configService.get<string>('REDIS_USERNAME'),
+        password: configService.get<string>('REDIS_PASSWORD'),
+      }
       : undefined,
     errorDedupWindowSeconds: configService.get<number>(
       'ERROR_DEDUP_WINDOW_SECONDS',
@@ -154,5 +157,18 @@ export function createInspectorCoreOptionsFromConfigService(
       'LATENCY_INCIDENT_WINDOW_SECONDS',
     ),
     errorSeverityThresholds: readErrorSeverityThresholdsFromConfig(configService),
+    incidentEnvironment: readIncidentEnvironmentFromConfig(configService),
   });
+}
+
+function readIncidentEnvironmentFromConfig(
+  configService: ConfigService,
+): string | undefined {
+  const appProfile = configService.get<string>('APP_PROFILE')?.trim();
+  if (appProfile) {
+    return appProfile;
+  }
+
+  const nodeEnv = configService.get<string>('NODE_ENV')?.trim();
+  return nodeEnv || undefined;
 }

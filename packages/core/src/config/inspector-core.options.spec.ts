@@ -30,4 +30,24 @@ describe('createInspectorCoreOptionsFromConfigService', () => {
       recurrenceMinPriorIncidents: 3,
     });
   });
+
+  it('maps incident environment from APP_PROFILE', () => {
+    const configService = {
+      get: jest.fn((key: string, defaultValue?: unknown) => {
+        const values: Record<string, unknown> = {
+          APP_PROFILE: 'simulation',
+          ERROR_DEDUP_WINDOW_SECONDS: 300,
+          REDIS_PORT: 6379,
+        };
+
+        return values[key] ?? defaultValue;
+      }),
+    };
+
+    const options = createInspectorCoreOptionsFromConfigService(
+      configService as never,
+    );
+
+    expect(options.incidentEnvironment).toBe('simulation');
+  });
 });

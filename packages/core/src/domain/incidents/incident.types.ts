@@ -1,3 +1,5 @@
+import { type ErrorIncidentFingerprint } from './incident-fingerprint.types';
+
 export type IncidentSeverity =
   | 'critical'
   | 'high'
@@ -15,6 +17,7 @@ export type ErrorIncidentSummary = {
   requestId?: string;
   latency?: number;
   metadata: Record<string, unknown>;
+  fingerprint: ErrorIncidentFingerprint;
 };
 
 export type ErrorIncidentResult = {

@@ -71,6 +71,7 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
     const summary = buildErrorIncidentSummary({
       captured: capturedError,
       latency: event.latency,
+      environment: this.options.incidentEnvironment,
     });
 
     const incident =
