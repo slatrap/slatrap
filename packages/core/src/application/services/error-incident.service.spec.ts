@@ -202,6 +202,66 @@ describe('ErrorIncidentService', () => {
     expect(result.severity).toBe('high');
   });
 
+  it('creates separate incidents for same stripe error across different environments', async () => {
+    const { service, dedupStore, prisma } = createMocks({ errorDedupWindowSeconds: 300 });
+
+    const base = {
+      provider: 'stripe',
+      errorCode: 'insufficient_funds',
+      errorType: 'card_error',
+      errorMessage: 'Insufficient funds',
+      endpoint: '/stripe/insufficient-funds',
+      statusCode: 402,
+      severity: 'medium' as const,
+      requestId: 'req_stripe_01',
+      latency: 120,
+      metadata: { userId: 'user_01' },
+    };
+
+    const simulationSummary: ErrorIncidentSummary = {
+      ...base,
+      fingerprint: buildErrorIncidentFingerprint({
+        provider: base.provider,
+        errorCode: base.errorCode,
+        errorType: base.errorType,
+        endpoint: base.endpoint,
+        environment: 'simulation',
+      }),
+    };
+
+    const productionSummary: ErrorIncidentSummary = {
+      ...base,
+      fingerprint: buildErrorIncidentFingerprint({
+        provider: base.provider,
+        errorCode: base.errorCode,
+        errorType: base.errorType,
+        endpoint: base.endpoint,
+        environment: 'production',
+      }),
+    };
+
+    dedupStore.get
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+
+    prisma.createExternalError
+      .mockResolvedValueOnce({ id: 201 })
+      .mockResolvedValueOnce({ id: 202 });
+
+    const first = await service.checkAndRegisterIncident(simulationSummary);
+    const second = await service.checkAndRegisterIncident(productionSummary);
+
+    expect(simulationSummary.fingerprint.hash).not.toBe(productionSummary.fingerprint.hash);
+    expect(simulationSummary.fingerprint.cacheKey).not.toBe(productionSummary.fingerprint.cacheKey);
+
+    expect(dedupStore.get).toHaveBeenNthCalledWith(1, simulationSummary.fingerprint.cacheKey);
+    expect(dedupStore.get).toHaveBeenNthCalledWith(2, productionSummary.fingerprint.cacheKey);
+
+    expect(prisma.createExternalError).toHaveBeenCalledTimes(2);
+    expect(first).toEqual({ isDuplicate: false, id: 201, count: 1, severity: 'medium' });
+    expect(second).toEqual({ isDuplicate: false, id: 202, count: 1, severity: 'medium' });
+  });
+
   it('skips database writes when persistence is disabled', async () => {
     const dedupStore = {
       get: jest.fn().mockResolvedValue(null),
