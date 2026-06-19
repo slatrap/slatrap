@@ -1,6 +1,6 @@
 {
   "name": "@slatrap/slatrap",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Framework-agnostic sanitize and emit API for fintech provider errors (Plaid, Stripe, and similar).",
   "license": "MIT",
   "private": false,
