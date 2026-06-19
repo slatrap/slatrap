@@ -72,6 +72,8 @@ void Slatrap.emit({
 
 **Axios:** after `configureSlatrap`, attach `createAxiosResponseErrorInterceptor()`; failed responses sanitize and emit automatically.
 
+**Latency detection signals:** you can detect and emit provider latency with `emitProviderLatency`, or attach `createAxiosLatencyHooks` to automatically detect and emit latency on Axios success/error paths.
+
 ## How it works
 
 ```
@@ -130,6 +132,47 @@ client.interceptors.response.use(
 );
 ```
 
+### Axios latency hooks
+
+Use these hooks when you want explicit provider latency telemetry in addition to error events:
+
+```ts
+import axios from 'axios';
+import {
+  configureSlatrap,
+  createAxiosLatencyHooks,
+} from '@slatrap/slatrap';
+
+configureSlatrap({
+  emit: (payload) => myEventBus.publish('provider.events', payload),
+});
+
+const startedAt = Date.now();
+const hooks = createAxiosLatencyHooks({
+  provider: 'plaid',
+  endpoint: '/transactions/get',
+  startedAt,
+  onError: (error) => Promise.reject(error),
+});
+
+const client = axios.create();
+client.interceptors.response.use(hooks.onSuccess, hooks.onError);
+```
+
+For manual emission without Axios hooks:
+
+```ts
+import { emitProviderLatency } from '@slatrap/slatrap';
+
+emitProviderLatency({
+  provider: 'stripe',
+  endpoint: '/v1/payment_intents',
+  startedAt: Date.now() - 450,
+  succeeded: true,
+  statusCode: 200,
+});
+```
+
 ### NestJS interceptor
 
 ```ts
@@ -168,6 +211,19 @@ configureSlatrap({
 });
 ```
 
+### Latency from startedAt
+
+If you pass `startedAt` in emitted payloads, Slatrap derives `latency` automatically when `latency` is not already set.
+
+```ts
+void Slatrap.emit({
+  provider: 'plaid',
+  endpoint: '/transactions/get',
+  startedAt: Date.now() - 320,
+  providerPayload: { error_code: 'INSTITUTION_DOWN' },
+});
+```
+
 ### Separate instance (no global config)
 
 ```ts
@@ -183,7 +239,7 @@ const tenantSlatrap = createSlatrap({
 By default, keys matching sensitive patterns are replaced with `[REDACTED]`:
 
 - Tokens and secrets: `access_token`, `refresh_token`, `client_secret`, `api_key`, `authorization`, `password`, …
-- Account identifiers: account/card/routing patterns, `iban`, `ssn`, and similar (full list in `[SENSITIVE_KEY_PATTERNS](https://github.com/slatrap/slatrap/blob/main/packages/slatrap/src/sanitization/sanitizer.ts#L66-L94)`).
+- Account identifiers: account/card/routing patterns, `iban`, `ssn`, and similar (full list in [SENSITIVE_KEY_PATTERNS](https://github.com/slatrap/slatrap/blob/main/packages/slatrap/src/sanitization/sanitizer.ts#L66-L94)).
 
 Import and use the constant in your app:
 
@@ -203,9 +259,13 @@ Whitelisted top-level fields (e.g. `provider`, `endpoint`, `statusCode`, `provid
 | `Slatrap.sanitize` / `Slatrap.emit`                    | Global sanitize + emit API                                                                                                                            |
 | `configureSlatrap`                                     | Set global `emit` handler and redaction defaults (call once at startup)                                                                               |
 | `createSlatrap`                                        | Non-global instance with its own handler                                                                                                              |
-| `createAxiosResponseErrorInterceptor`                  | Axios error middleware; normalizes timeouts before `emit` (optional `defaultProvider`, `resolveEndpoint`)                                           |
-| `isHttpTimeoutError` / `buildHttpTimeoutEmitPayload`   | Detect HTTP timeouts and build a provider-agnostic emit payload (`504`, `error_type: timeout`)                                                        |
+| `createAxiosResponseErrorInterceptor`                  | Axios error middleware; normalizes timeout failures before `emit` (optional `defaultProvider`, `resolveEndpoint`, `resolveTimeoutMs`)              |
+| `isHttpTimeoutError` / `buildHttpTimeoutEmitPayload`  | Detect HTTP timeouts and build a provider-agnostic emit payload (`504`, `error_type: timeout`)                                                       |
 | `fetchWithTimeout`                                     | `fetch` with `AbortSignal.timeout`; optional `formatTimeoutError` for provider-specific transport errors                                            |
+| `createAxiosLatencyHooks` / `emitProviderLatency`      | Emit provider latency telemetry for success and error paths (core event: `provider.latency`)                                                         |
+| `buildProviderLatencyEmitPayload`                      | Build a core latency event envelope from provider/endpoint/timing inputs                                                                              |
+| `PROVIDER_LATENCY_EVENT_NAME`                          | Constant event name for provider latency envelopes (`provider.latency`)                                                                               |
+| `resolveAxiosResponseStatus`                           | Extract HTTP status from Axios responses/errors for latency/error classification                                                                       |
 | `@slatrap/slatrap/nestjs` → `ProviderErrorInterceptor` | Nest HTTP interceptor (peer: `@nestjs/common`, `rxjs`)                                                                                                |
 | `configureSlatrapForCoreInspector`                     | Map emits to your event bus by event name                                                                                                             |
 
