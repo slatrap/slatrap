@@ -29,8 +29,8 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test (core)
-        run: npm run test:core
+      - name: Test (slatrap-engine)
+        run: npm run test:slatrap-engine
 
       - name: Test (slatrap)
         run: npm run test:slatrap

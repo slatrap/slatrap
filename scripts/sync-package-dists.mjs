@@ -9,9 +9,15 @@ const builtPackagesRoot = path.join(backendRoot, 'dist', 'packages');
 
 const packageTargets = [
   {
-    name: 'core',
-    source: path.join(builtPackagesRoot, 'core', 'src'),
-    destination: path.join(backendRoot, 'packages', 'core', 'dist', 'src'),
+    name: 'slatrap-engine',
+    source: path.join(builtPackagesRoot, 'slatrap-engine', 'src'),
+    destination: path.join(
+      backendRoot,
+      'packages',
+      'slatrap-engine',
+      'dist',
+      'src',
+    ),
   },
   {
     name: 'slatrap',

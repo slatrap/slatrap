@@ -99,7 +99,7 @@ Run **`docker compose up --build`** to start the full stack locally. For setup d
 docker compose up --build
 npm run build:slatrap
 npm run test:slatrap
-npm run test:core
+npm run test:slatrap-engine
 npm run typecheck
 ```
 

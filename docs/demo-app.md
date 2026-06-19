@@ -149,7 +149,7 @@ Set `STRIPE_HTTP_TIMEOUT_MS` in `.env` (default `30000`) to control outbound tim
 
 ```bash
 npm run test:slatrap
-npm run test:core
+npm run test:slatrap-engine
 npm run typecheck
 ```
 
