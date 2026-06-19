@@ -25,7 +25,7 @@
     "lint": "eslint \"{src,packages,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:slatrap": "jest --config ./test/jest-slatrap.json",
-    "test:core": "jest --config ./test/jest-core.json",
+    "test:slatrap-engine": "jest --config ./test/jest-core.json",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",

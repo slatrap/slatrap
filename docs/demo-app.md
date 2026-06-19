@@ -1,6 +1,6 @@
 # Demo app (this repository)
 
-The NestJS app in the repo root demonstrates [`@slatrap/slatrap`](https://www.npmjs.com/package/@slatrap/slatrap) with the in-repo `@slatrap/core` inspector (not on npm yet).
+The NestJS app in the repo root demonstrates [`@slatrap/slatrap`](https://www.npmjs.com/package/@slatrap/slatrap) with the in-repo `@slatrap/slatrap-engine` inspector.
 
 ## Prerequisites
 

@@ -1,6 +1,6 @@
 import { type SanitizedValue } from '../sanitization/sanitizer';
 
-/** Must match `@slatrap/core` `PROVIDER_LATENCY_EVENT`. */
+/** Must match `@slatrap/slatrap-engine` `PROVIDER_LATENCY_EVENT`. */
 export const PROVIDER_LATENCY_EVENT_NAME = 'provider.latency';
 
 export type ProviderLatencyEmitInput = {

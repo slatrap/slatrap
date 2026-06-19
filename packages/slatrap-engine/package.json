@@ -1,5 +1,5 @@
 {
-  "name": "@slatrap/core",
+  "name": "@slatrap/slatrap-engine",
   "version": "0.0.1",
   "description": "Core Slatrap runtime services, listeners, and monitoring integration.",
   "license": "UNLICENSED",
