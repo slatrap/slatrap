@@ -1,14 +1,34 @@
 # Slatrap
 
-**Slatrap** helps fintech teams handle payment and provider failures without leaking secrets or losing signal.
-
-When Plaid, Stripe, or similar APIs return errors, raw payloads often contain tokens, account identifiers, and other sensitive fields. Slatrap gives you a small, focused pipeline:
+Payment incident intelligence for Stripe, Plaid and custom APIs.
 
 ## Demo
 
 Stripe simulation → webhook → sanitized error → database + Slack (~11s).
 
 https://github.com/user-attachments/assets/5745a130-9b86-4a45-bcb2-1fa36ec2eb7e
+
+## How it works
+
+                   Customer Application
+                            |
+                            |
+                          Slatrap
+                  (sanitize errors + emit)
+                            |
+                            |
+                  In-process Event Bus
+                    (demo app wiring)
+                            |
+                            |
+                      Slatrap Engine
+            (incident detection & intelligence)
+                            |
+              +-------------+--------------+
+              |             |              |
+            PostgreSQL      Slack     Redis (optional)
+
+The demo app wires the SDK directly into the engine's in-process event bus. Redis is optional and is used for deduplication and queued Slack delivery, not as the main event transport.
 
 ## Sanitize — keep data safe
 
@@ -47,7 +67,9 @@ await Slatrap.emit({
 
 Works from plain Node, Axios interceptors, or NestJS (`@slatrap/slatrap/nestjs`).
 
-## Install
+## Path 1 — Add Slatrap to your existing infrastructure
+
+Use this path if your team already has an event bus, queue, alerting pipeline, database, or incident workflow and you only need Slatrap for sanitization and structured error emission.
 
 Published on npm as [`@slatrap/slatrap`](https://www.npmjs.com/package/@slatrap/slatrap):
 
@@ -61,11 +83,15 @@ Nest interceptor (optional peers):
 npm install @nestjs/common rxjs
 ```
 
+You keep your existing infrastructure and wire Slatrap's `emit` hook into it. Typical destinations are your own queue, worker, incident service, Slack notifier, or database writer.
+
 **API reference and examples:** [packages/slatrap/README.md](packages/slatrap/README.md)
 
-## Try the full stack locally
+## Path 2 — Run a complete payment incident monitoring system
 
-This repository includes a demo NestJS app that wires sanitize + emit into Slack alerts and database persistence (with optional Redis deduplication). Run **`docker compose up --build`** for the full stack — see [docs/demo-app.md](docs/demo-app.md).
+Use this path if you want a complete working system instead of only the SDK. This repository includes a demo NestJS app plus the in-repo engine for incident detection, database persistence, Slack alerts, and optional Redis-backed deduplication/queueing.
+
+Run **`docker compose up --build`** to start the full stack locally. For setup details, environment variables, and simulation flows, see [docs/demo-app.md](docs/demo-app.md).
 
 ## Develop in this monorepo
 

@@ -2,31 +2,60 @@
 
 The NestJS app in the repo root demonstrates [`@slatrap/slatrap`](https://www.npmjs.com/package/@slatrap/slatrap) with the in-repo `@slatrap/slatrap-engine` inspector.
 
+## Architecture
+
+```text
++------------------+
+| Customer App     |
+|                  |
+| slatrap SDK      |
++------------------+
+         |
+         | sanitized events
+         v
++------------------+
+| Slatrap Engine   |
+|                  |
+| - incident rules |
+| - grouping       |
+| - severity       |
+| - impact         |
++------------------+
+         |
+         +----> PostgreSQL
+         |
+         +----> Redis Queue
+         |
+         +----> Slack
+```
+
 ## Prerequisites
 
 - Node.js 18+
-- Docker (optional, for Postgres + Redis)
+- Docker for the full local stack, or any reachable Postgres and Redis instances if you run the app another way
 
-## Install and build
+## Quick start
 
-```bash
-npm install
-npm run build
-```
+This repo is already wired end to end. The fastest way to run the complete payment incident monitoring demo is:
 
-## One-command dev stack (Docker)
-
-Starts **Postgres**, **Redis**, runs **migrations**, then **Nest** (`start:dev`), **Prisma Studio**, and **Stripe CLI** (if `STRIPE_SECRET_KEY` is set):
+Copy `.env.example` to `.env`, then run:
 
 ```bash
 npm install
-cp .env.example .env   # set APP_PROFILE=simulation, SIMULATION_INTERNAL_TOKEN, etc.
 docker compose up --build
 ```
 
-Stop everything with `docker compose down`.
+This starts Postgres, Redis, migrations, the Nest app, Prisma Studio, and Stripe CLI when `STRIPE_SECRET_KEY` is set.
 
-`slatrap-migrate` showing **Exited** is normal — it runs `prisma migrate deploy` once and stops. `dev` and `prisma-studio` should stay **Up**.
+Stop everything with:
+
+```bash
+docker compose down
+```
+
+`slatrap-migrate` showing **Exited** is normal. It runs `prisma migrate deploy` once and stops. `dev` and `prisma-studio` should stay **Up**.
+
+## Services
 
 | URL                   | Service       |
 | --------------------- | ------------- |
@@ -35,44 +64,51 @@ Stop everything with `docker compose down`.
 | localhost:5432        | Postgres      |
 | localhost:6379        | Redis         |
 
-**Infra only** (db + redis, run the app on your host):
-
-```bash
-npm run dev:infra
-npm run dev:infra:down
-```
-
 ## Environment
 
-Copy `.env.example` to `.env`. Important variables:
+Copy `.env.example` to `.env`. The most important variables are:
 
 ```bash
-# Optional — omit to disable feature
 DATABASE_URL="postgresql://postgres:mysecretpassword@localhost:5432/nest_db?schema=public"
 SLACK_WEBHOOK_URL="https://hooks.slack.com/services/xxx/yyy/zzz"
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 ```
 
-## Database
+Notes:
 
-Migrations run automatically when using `docker compose up`. To run manually on the host:
+- Omit `SLACK_WEBHOOK_URL` to disable Slack delivery.
+- Omit Redis settings to run without Redis-backed deduplication and Slack queueing.
+- `APP_PROFILE=simulation` and `SIMULATION_INTERNAL_TOKEN` are required for the simulation endpoints.
+
+## Run without Docker for the app process
+
+Use this path if you want Postgres and Redis in Docker but prefer to run Nest on your host.
+
+Copy `.env.example` to `.env`, then run:
 
 ```bash
-npx prisma migrate deploy
-```
-
-## Run the app (without Docker dev stack)
-
-```bash
+npm install
 npm run dev:infra
 npx prisma migrate deploy
 npm run start:dev
 ```
 
-## Wire Slatrap to core
+Stop infra with:
 
-Register `SlatrapBootstrapService` in `AppProductionModule` and import `InspectorCoreModule.forRootAsync` via `createAppCoreImports()` — see `src/app-core-imports.ts` and `src/bootstrap/slatrap-bootstrap.service.ts`.
+```bash
+npm run dev:infra:down
+```
+
+## Stripe webhooks (local)
+
+When using `docker compose up`, the `stripe-cli` container can forward webhooks automatically if `STRIPE_SECRET_KEY` is set. Copy the webhook signing secret from its output into `STRIPE_WEBHOOK_SECRET`, then restart the `dev` service if needed.
+
+If you are running the app on the host instead, start the Stripe listener manually:
+
+```bash
+npm run stripe:listen
+```
 
 ## Simulation
 
@@ -108,16 +144,6 @@ Repeated slow calls within `LATENCY_INCIDENT_WINDOW_SECONDS` increment the same 
 | `/stripe/timeout`                                         | Instant timeout (`504`, `api_connection_error`) — no Stripe call        |
 
 Set `STRIPE_HTTP_TIMEOUT_MS` in `.env` (default `30000`) to control outbound timeouts. Restart `dev` after changing it.
-
-## Stripe webhooks (local)
-
-Included in `docker compose up` via the `stripe-cli` container when `STRIPE_SECRET_KEY` is in `.env`. Copy the webhook signing secret from the CLI output into `STRIPE_WEBHOOK_SECRET`, then restart the `dev` service if needed.
-
-Or run on the host only:
-
-```bash
-npm run stripe:listen
-```
 
 ## Tests
 
