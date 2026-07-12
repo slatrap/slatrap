@@ -96,7 +96,6 @@ export class StripeSimulatorService {
     );
     const mapped = this.stripeSimulatorErrorMapper.map(error);
     const stripeError = mapped.stripeError;
-    const latency = Date.now() - start;
     const httpStatus = mapped.httpStatus;
     const requestId = mapped.requestId;
 
@@ -125,7 +124,7 @@ export class StripeSimulatorService {
       {
         endpoint: simulation.endpoint,
         statusCode: httpStatus,
-        latency,
+        startedAt: start,
       },
       simulation.successMessage,
     );

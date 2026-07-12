@@ -14,22 +14,21 @@ export class PlaidSimulationErrorService {
     delayMs: number,
     options: PlaidSimulationOptions = {},
   ): Promise<{ ok: true; latencyMs: number }> {
-    const start = Date.now();
+    const startedAt = Date.now();
     await delay(delayMs);
-    const latencyMs = Date.now() - start;
 
     if (!options.skipProviderLatencyEmit) {
       emitProviderLatency({
         provider: 'plaid',
         endpoint: '/plaid/slow-response',
-        startedAt: start,
+        startedAt,
         success: true,
         statusCode: 200,
         metadata: { simulatedDelayMs: delayMs },
       });
     }
 
-    return { ok: true, latencyMs };
+    return { ok: true, latencyMs: Date.now() - startedAt };
   }
 
   triggerError(

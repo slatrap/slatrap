@@ -70,13 +70,15 @@ export class ProviderErrorInterceptor implements NestInterceptor {
           return throwError(() => error);
         }
 
+        const emitStartedAt = this.readEmitStartedAt(responsePayload, startedAt);
+
         void Slatrap.emit(
           Slatrap.sanitize({
             provider: this.detectProvider(responsePayload),
             endpoint,
             statusCode: this.readStatusCode(error),
-            providerPayload: Slatrap.sanitize(responsePayload),
-            startedAt,
+            providerPayload: Slatrap.sanitize(this.omitStartedAt(responsePayload)),
+            startedAt: emitStartedAt,
           }),
         );
 
@@ -152,6 +154,24 @@ export class ProviderErrorInterceptor implements NestInterceptor {
     }
 
     return Boolean(this.detectProvider(payload));
+  }
+
+  private readEmitStartedAt(payload: unknown, fallbackStartedAt: number): number {
+    if (!this.isRecord(payload)) return fallbackStartedAt;
+
+    const candidate = payload.startedAt;
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      return candidate;
+    }
+
+    return fallbackStartedAt;
+  }
+
+  private omitStartedAt(payload: unknown): unknown {
+    if (!this.isRecord(payload)) return payload;
+
+    const { startedAt: _startedAt, ...rest } = payload;
+    return rest;
   }
 
   private isRecord(value: unknown): value is Record<string, unknown> {
