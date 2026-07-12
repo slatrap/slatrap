@@ -18,7 +18,7 @@ export function buildProviderLatencyEmitPayload(
   const payload: Record<string, unknown> = {
     provider: input.provider,
     endpoint: input.endpoint,
-    latencyMs: Date.now() - input.startedAt,
+    startedAt: input.startedAt,
     success: input.success,
     statusCode: input.statusCode ?? null,
   };

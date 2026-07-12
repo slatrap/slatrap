@@ -57,7 +57,7 @@ export class ProviderLatencyListener implements OnModuleInit, OnModuleDestroy {
     await this.latencyTrackingService.recordObservation({
       provider: event.provider,
       endpoint: event.endpoint,
-      latencyMs: event.latencyMs,
+      latency: event.latency,
       success: event.success,
       statusCode: event.statusCode,
       metadata: event.metadata,
@@ -66,7 +66,7 @@ export class ProviderLatencyListener implements OnModuleInit, OnModuleDestroy {
     const incident = await this.latencyIncidentService.checkAndRegisterIncident({
       provider: event.provider,
       endpoint: event.endpoint,
-      latencyMs: event.latencyMs,
+      latency: event.latency,
       thresholdMs,
       success: event.success,
       statusCode: event.statusCode,
@@ -81,7 +81,7 @@ export class ProviderLatencyListener implements OnModuleInit, OnModuleDestroy {
       {
         provider: event.provider,
         endpoint: event.endpoint,
-        latencyMs: event.latencyMs,
+        latency: event.latency,
         thresholdMs,
         success: event.success,
         statusCode: event.statusCode,
@@ -97,7 +97,7 @@ export class ProviderLatencyListener implements OnModuleInit, OnModuleDestroy {
           type: 'latency_incident',
           provider: event.provider,
           endpoint: event.endpoint,
-          latencyMs: event.latencyMs,
+          latency: event.latency,
           thresholdMs,
           success: event.success,
           statusCode: event.statusCode,

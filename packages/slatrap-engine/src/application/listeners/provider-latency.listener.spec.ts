@@ -72,7 +72,7 @@ describe('ProviderLatencyListener', () => {
     registeredListener?.({
       provider: 'plaid',
       endpoint: '/plaid/slow-response',
-      latencyMs: 2_500,
+      latency: 2_500,
       success: true,
       statusCode: 200,
       metadata: { simulatedDelayMs: 2_500 },
@@ -84,14 +84,14 @@ describe('ProviderLatencyListener', () => {
     expect(latencyIncidentService.checkAndRegisterIncident).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: 'plaid',
-        latencyMs: 2_500,
+        latency: 2_500,
         thresholdMs: 2_000,
       }),
     );
     expect(slackQueue.add).toHaveBeenCalledWith(
       SLACK_SEND_ALERT_JOB,
       expect.objectContaining({
-        text: expect.stringContaining('"latencyMs": 2500'),
+        text: expect.stringContaining('"latency": 2500'),
       }),
     );
     expect(slackQueue.add).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('ProviderLatencyListener', () => {
     registeredListener?.({
       provider: 'plaid',
       endpoint: '/plaid/slow-response',
-      latencyMs: 3_000,
+      latency: 3_000,
       success: true,
       statusCode: 200,
     });

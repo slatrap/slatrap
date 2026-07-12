@@ -5,6 +5,20 @@ export function resolveEmitLatency(payload: SanitizedValue): SanitizedValue {
     return payload;
   }
 
+  const eventName = payload.eventName;
+  if (typeof eventName === 'string' && isRecord(payload.payload)) {
+    return {
+      ...payload,
+      payload: resolveRecordLatency(payload.payload),
+    } as SanitizedValue;
+  }
+
+  return resolveRecordLatency(payload) as SanitizedValue;
+}
+
+function resolveRecordLatency(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
   const startedAt = payload.startedAt;
   if (typeof startedAt !== 'number' || !Number.isFinite(startedAt)) {
     return payload;
@@ -13,13 +27,13 @@ export function resolveEmitLatency(payload: SanitizedValue): SanitizedValue {
   const { startedAt: _startedAt, ...rest } = payload;
 
   if (typeof rest.latency === 'number' && Number.isFinite(rest.latency)) {
-    return rest as SanitizedValue;
+    return rest;
   }
 
   return {
     ...rest,
     latency: Date.now() - startedAt,
-  } as SanitizedValue;
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

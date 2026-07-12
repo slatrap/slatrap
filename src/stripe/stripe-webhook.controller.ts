@@ -86,7 +86,7 @@ export class StripeWebhookController {
     const stripePayload = {
       ...stripeError,
       ...(userId ? { userId } : {}),
-      ...this.computeLatency(paymentIntent.metadata),
+      ...this.readSimulatorStartedAt(paymentIntent.metadata),
     };
 
     this.logger.log(
@@ -100,15 +100,15 @@ export class StripeWebhookController {
     throw new HttpException(stripePayload, 402);
   }
 
-  /** Computes latency from the simulator's start timestamp stored in PaymentIntent metadata. */
-  private computeLatency(
+  /** Reads the simulator start timestamp stored in PaymentIntent metadata. */
+  private readSimulatorStartedAt(
     metadata?: Record<string, string>,
-  ): { latency: number } | Record<never, never> {
+  ): { startedAt: number } | Record<never, never> {
     const raw = metadata?.['start'];
     if (!raw) return {};
     const startTs = parseInt(raw, 10);
     if (isNaN(startTs)) return {};
-    return { latency: Date.now() - startTs };
+    return { startedAt: startTs };
   }
 
   /**

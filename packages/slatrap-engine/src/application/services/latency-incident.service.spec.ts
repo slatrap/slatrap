@@ -7,7 +7,7 @@ describe('LatencyIncidentService', () => {
   const incidentInput = {
     provider: 'plaid',
     endpoint: '/plaid/slow-response',
-    latencyMs: 2_500,
+    latency: 2_500,
     thresholdMs: 2_000,
     success: true,
     statusCode: 200,
@@ -50,7 +50,7 @@ describe('LatencyIncidentService', () => {
 
     const result = await service.checkAndRegisterIncident({
       ...incidentInput,
-      latencyMs: 1_500,
+      latency: 1_500,
     });
 
     expect(result).toEqual({ isIncident: false, isDuplicate: false });
@@ -102,7 +102,7 @@ describe('LatencyIncidentService', () => {
 
     const result = await service.checkAndRegisterIncident({
       ...incidentInput,
-      latencyMs: 3_100,
+      latency: 3_100,
     });
 
     expect(result).toEqual({

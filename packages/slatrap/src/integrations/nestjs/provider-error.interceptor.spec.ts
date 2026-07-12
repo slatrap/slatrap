@@ -51,6 +51,7 @@ describe('ProviderErrorInterceptor', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     configureSlatrap({ emit: () => undefined });
   });
 
@@ -251,6 +252,34 @@ describe('ProviderErrorInterceptor', () => {
     const emitted = getEmitted();
     const providerPayload = emitted.providerPayload as Record<string, unknown>;
     expect(providerPayload.access_token).toBe('[REDACTED]');
+  });
+
+  // ── startedAt promotion ─────────────────────────────────────────────────
+
+  it('promotes startedAt from the error response to the emit envelope', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(10_000);
+
+    const error = new HttpException(
+      {
+        type: 'card_error',
+        code: 'card_declined',
+        startedAt: 7_500,
+      },
+      402,
+    );
+    await expect(
+      lastValueFrom(
+        interceptor.intercept(makeHttpContext('/stripe/webhook'), makeHandler(error)),
+      ),
+    ).rejects.toBe(error);
+
+    const emitted = getEmitted();
+    expect(emitted.startedAt).toBeUndefined();
+    expect(emitted.latency).toBe(2_500);
+    expect(emitted.providerPayload).toEqual({
+      type: 'card_error',
+      code: 'card_declined',
+    });
   });
 
   // ── re-throw ─────────────────────────────────────────────────────────────

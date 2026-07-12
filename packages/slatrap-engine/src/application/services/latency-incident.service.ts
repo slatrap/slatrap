@@ -11,7 +11,7 @@ import { type DedupStore } from '../../infrastructure/redis/dedup-store';
 export type LatencyIncidentInput = {
   provider: string;
   endpoint?: string;
-  latencyMs: number;
+  latency: number;
   thresholdMs: number;
   success: boolean;
   statusCode?: number | null;
@@ -37,7 +37,7 @@ export class LatencyIncidentService {
   async checkAndRegisterIncident(
     input: LatencyIncidentInput,
   ): Promise<LatencyIncidentResult> {
-    if (input.latencyMs < input.thresholdMs) {
+    if (input.latency < input.thresholdMs) {
       return { isIncident: false, isDuplicate: false };
     }
 
@@ -57,7 +57,7 @@ export class LatencyIncidentService {
         firstSeenAt: string;
       };
       const nextCount = existing.count + 1;
-      const maxLatencyMs = Math.max(existing.maxLatencyMs, input.latencyMs);
+      const maxLatencyMs = Math.max(existing.maxLatencyMs, input.latency);
       let recordId = existing.id;
 
       if (this.prisma.isEnabled) {
@@ -97,7 +97,7 @@ export class LatencyIncidentService {
 
     if (existingInDb) {
       const nextCount = existingInDb.count + 1;
-      const maxLatencyMs = Math.max(existingInDb.maxLatencyMs, input.latencyMs);
+      const maxLatencyMs = Math.max(existingInDb.maxLatencyMs, input.latency);
 
       await this.incrementIncident(existingInDb.id, maxLatencyMs);
       await this.dedupStore.setex(
@@ -128,7 +128,7 @@ export class LatencyIncidentService {
       JSON.stringify({
         id: created.id,
         count: 1,
-        maxLatencyMs: input.latencyMs,
+        maxLatencyMs: input.latency,
         firstSeenAt: now.toISOString(),
         lastSeenAt: now.toISOString(),
       }),
@@ -210,8 +210,8 @@ export class LatencyIncidentService {
       provider: input.provider.toUpperCase(),
       endpoint: input.endpoint,
       thresholdMs: input.thresholdMs,
-      observedMs: input.latencyMs,
-      maxLatencyMs: input.latencyMs,
+      observedMs: input.latency,
+      maxLatencyMs: input.latency,
       count: initialCount,
       metadata: toPrismaJsonObject({
         success: input.success,
