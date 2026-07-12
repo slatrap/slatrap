@@ -5,7 +5,7 @@ import { toPrismaJsonObject } from '../../database/prisma-json';
 export type LatencyObservationInput = {
   provider: string;
   endpoint?: string;
-  latencyMs: number;
+  latency: number;
   success: boolean;
   statusCode?: number | null;
   metadata?: Record<string, unknown>;
@@ -25,7 +25,7 @@ export class LatencyTrackingService {
     return this.prisma.createLatencyObservation({
       provider: input.provider.toUpperCase(),
       endpoint: input.endpoint,
-      latencyMs: input.latencyMs,
+      latencyMs: input.latency,
       success: input.success,
       statusCode: input.statusCode ?? undefined,
       metadata: toPrismaJsonObject(input.metadata),

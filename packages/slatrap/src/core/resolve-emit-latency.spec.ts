@@ -1,4 +1,5 @@
 import { resolveEmitLatency } from './resolve-emit-latency';
+import { PROVIDER_LATENCY_EVENT_NAME } from './provider-latency-emit';
 
 describe('resolveEmitLatency', () => {
   afterEach(() => {
@@ -18,6 +19,32 @@ describe('resolveEmitLatency', () => {
       provider: 'plaid',
       endpoint: '/plaid/item/get',
       latency: 500,
+    });
+  });
+
+  it('derives latency inside core event envelope payloads', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(5_000);
+
+    expect(
+      resolveEmitLatency({
+        eventName: PROVIDER_LATENCY_EVENT_NAME,
+        payload: {
+          provider: 'plaid',
+          endpoint: '/plaid/slow-response',
+          startedAt: 2_500,
+          success: true,
+          statusCode: 200,
+        },
+      }),
+    ).toEqual({
+      eventName: PROVIDER_LATENCY_EVENT_NAME,
+      payload: {
+        provider: 'plaid',
+        endpoint: '/plaid/slow-response',
+        success: true,
+        statusCode: 200,
+        latency: 2_500,
+      },
     });
   });
 

@@ -39,9 +39,9 @@ describe('axios-latency', () => {
         payload: expect.objectContaining({
           provider: 'plaid',
           endpoint: '/accounts/get',
+          startedAt,
           success: true,
           statusCode: 200,
-          latencyMs: expect.any(Number),
         }),
       });
     });

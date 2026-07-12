@@ -9,7 +9,7 @@ export type ProviderErrorInspectionEvent = {
 export type ProviderLatencyInspectionEvent = {
   provider: string;
   endpoint?: string;
-  latencyMs: number;
+  latency: number;
   success: boolean;
   statusCode?: number | null;
   metadata?: Record<string, unknown>;
