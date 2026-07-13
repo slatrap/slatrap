@@ -6,6 +6,7 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import { Observable, catchError, throwError } from 'rxjs';
+import { detectProvider } from '../../core/detect-provider';
 import { Slatrap } from '../../index';
 
 type HttpRequestLike = {
@@ -74,7 +75,7 @@ export class ProviderErrorInterceptor implements NestInterceptor {
 
         void Slatrap.emit(
           Slatrap.sanitize({
-            provider: this.detectProvider(responsePayload),
+            provider: detectProvider(responsePayload),
             endpoint,
             statusCode: this.readStatusCode(error),
             providerPayload: Slatrap.sanitize(this.omitStartedAt(responsePayload)),
@@ -129,15 +130,6 @@ export class ProviderErrorInterceptor implements NestInterceptor {
     return httpLike?.response?.data ?? null;
   }
 
-  private detectProvider(payload: unknown): string | undefined {
-    if (!this.isRecord(payload)) return undefined;
-
-    if ('error_code' in payload || 'error_type' in payload) return 'plaid';
-    if ('type' in payload || 'code' in payload) return 'stripe';
-
-    return undefined;
-  }
-
   private readStatusCode(error: unknown): number | null {
     if (!(error instanceof HttpException)) return null;
 
@@ -153,7 +145,7 @@ export class ProviderErrorInterceptor implements NestInterceptor {
       return false;
     }
 
-    return Boolean(this.detectProvider(payload));
+    return Boolean(detectProvider(payload));
   }
 
   private readEmitStartedAt(payload: unknown, fallbackStartedAt: number): number {

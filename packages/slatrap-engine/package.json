@@ -23,5 +23,8 @@
     "fintech",
     "nestjs",
     "monitoring"
-  ]
+  ],
+  "dependencies": {
+    "@slatrap/slatrap": "file:../slatrap"
+  }
 }
