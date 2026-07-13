@@ -1,3 +1,4 @@
+import { detectProvider } from '@slatrap/slatrap';
 import { type FintechErrorContext } from './provider-error.types';
 
 type ErrorPayloadRecord = Record<string, unknown>;
@@ -67,22 +68,6 @@ function extractNestedProviderPayload(payload: unknown): {
   }
 
   return null;
-}
-
-function detectProvider(payload: ErrorPayloadRecord | undefined) {
-  if (!payload) {
-    return undefined;
-  }
-
-  if ('error_code' in payload || 'error_type' in payload) {
-    return 'plaid';
-  }
-
-  if ('type' in payload || 'code' in payload || 'message' in payload) {
-    return 'stripe';
-  }
-
-  return undefined;
 }
 
 function readString(

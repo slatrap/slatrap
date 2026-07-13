@@ -163,6 +163,8 @@ export {
   PROVIDER_LATENCY_EVENT_NAME,
 } from './core/provider-latency-emit';
 
+export { detectProvider, type DetectedProvider } from './core/detect-provider';
+
 export type { AxiosLatencyHooksOptions } from './http/axios-latency';
 
 import {

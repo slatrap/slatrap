@@ -3,6 +3,9 @@
   "rootDir": "..",
   "testEnvironment": "node",
   "testRegex": "packages/slatrap-engine/src/.*\\.spec\\.ts$",
+  "moduleNameMapper": {
+    "^@slatrap/slatrap$": "<rootDir>/packages/slatrap/src/index.ts"
+  },
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   }

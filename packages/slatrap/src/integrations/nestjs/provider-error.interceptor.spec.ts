@@ -23,8 +23,8 @@ function makeHandler(error?: unknown) {
     handle: () =>
       error !== undefined
         ? new Observable((s) => {
-            s.error(error);
-          })
+          s.error(error);
+        })
         : of({ ok: true }),
   };
 }
@@ -158,8 +158,22 @@ describe('ProviderErrorInterceptor', () => {
     expect(emitted.provider).toBe('plaid');
   });
 
+  it('skips emit for message-only payloads', async () => {
+    const error = new HttpException(
+      { message: 'Your card was declined.' },
+      402,
+    );
+    await expect(
+      lastValueFrom(
+        interceptor.intercept(makeHttpContext('/stripe/webhook'), makeHandler(error)),
+      ),
+    ).rejects.toBe(error);
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   it('skips emit when provider cannot be inferred from payload', async () => {
-    const error = new HttpException({ message: 'Unknown error' }, 500);
+    const error = new HttpException({ details: 'Unknown error' }, 500);
     await expect(
       lastValueFrom(
         interceptor.intercept(

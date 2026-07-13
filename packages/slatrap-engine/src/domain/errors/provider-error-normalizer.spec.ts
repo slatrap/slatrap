@@ -96,6 +96,28 @@ describe('normalizeFintechPayload', () => {
     expect(result.userId).toBe('user_stripe_01');
   });
 
+  it('does not infer provider from message-only payloads', () => {
+    const payload = {
+      message: 'Your card was declined.',
+    };
+
+    const result = normalizeFintechPayload(payload);
+
+    expect(result.provider).toBeUndefined();
+    expect(result.errorMessage).toBe('Your card was declined.');
+  });
+
+  it('leaves provider undefined for unknown payload shapes', () => {
+    const payload = {
+      details: 'something went wrong',
+    };
+
+    const result = normalizeFintechPayload(payload);
+
+    expect(result.provider).toBeUndefined();
+    expect(result.errorMessage).toBeUndefined();
+  });
+
   it('maps stripe timeout code to errorCode for stable dedup fingerprints', () => {
     const payload = {
       stripe: {
