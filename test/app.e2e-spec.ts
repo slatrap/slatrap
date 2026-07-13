@@ -1,19 +1,21 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { type AppProfile } from '../src/bootstrap/bootstrap-config';
+import { createE2eApp } from './e2e-app';
 
-describe('AppController (e2e)', () => {
+describe.each<[string, AppProfile]>([
+  ['production', 'production'],
+  ['simulation', 'simulation'],
+])('AppController (e2e, %s profile)', (_label, profile) => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    app = await createE2eApp(profile);
+  });
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  afterEach(async () => {
+    await app.close();
   });
 
   it('/ (GET)', () => {
@@ -21,9 +23,5 @@ describe('AppController (e2e)', () => {
       .get('/')
       .expect(200)
       .expect({ status: 'ok' });
-  });
-
-  afterEach(async () => {
-    await app.close();
   });
 });
