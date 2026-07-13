@@ -5,6 +5,10 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "workspaces": [
+    "packages/slatrap",
+    "packages/slatrap-engine"
+  ],
   "scripts": {
     "build": "nest build",
     "build:slatrap": "npm run build --prefix packages/slatrap",
