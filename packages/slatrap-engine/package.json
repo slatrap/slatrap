@@ -1,7 +1,7 @@
 {
   "name": "@slatrap/slatrap-engine",
   "version": "0.0.1",
-  "description": "Core Slatrap runtime services, listeners, and monitoring integration.",
+  "description": "NestJS inspector for Slatrap: incident detection, persistence, Slack alerts, and Redis-backed deduplication.",
   "license": "UNLICENSED",
   "private": false,
   "main": "./dist/src/index.js",
@@ -13,22 +13,55 @@
     }
   },
   "files": [
-    "dist/src"
+    "dist/src",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test": "jest --config ./jest.config.json",
     "prepublishOnly": "npm run build"
   },
   "publishConfig": {
     "access": "public"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slatrap/slatrap.git",
+    "directory": "packages/slatrap-engine"
+  },
+  "homepage": "https://github.com/slatrap/slatrap/tree/main/packages/slatrap-engine#readme",
+  "bugs": {
+    "url": "https://github.com/slatrap/slatrap/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "keywords": [
     "slatrap",
     "fintech",
     "nestjs",
-    "monitoring"
+    "monitoring",
+    "incidents"
   ],
   "dependencies": {
-    "@slatrap/slatrap": "file:../slatrap"
+    "@slatrap/slatrap": "^0.2.0"
+  },
+  "peerDependencies": {
+    "@nestjs/bullmq": "^11.0.0",
+    "@nestjs/common": "^10.0.0 || ^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^10.0.0 || ^11.0.0",
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.0.0",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.3"
   }
 }

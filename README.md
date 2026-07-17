@@ -89,7 +89,7 @@ You keep your existing infrastructure and wire Slatrap's `emit` hook into it. Ty
 
 ## Path 2 — Run a complete payment incident monitoring system
 
-Use this path if you want a complete working system instead of only the SDK. This repository includes a demo NestJS app plus the in-repo engine for incident detection, database persistence, Slack alerts, and optional Redis-backed deduplication/queueing.
+Use this path if you want a complete working system instead of only the SDK. This repository includes a demo NestJS app plus [`@slatrap/slatrap-engine`](packages/slatrap-engine/README.md) — a first-class NestJS inspector package for incident detection, database persistence, Slack alerts, and optional Redis-backed deduplication/queueing.
 
 Run **`docker compose up --build`** to start the full stack locally. For setup details, environment variables, and simulation flows, see [docs/demo-app.md](docs/demo-app.md).
 
