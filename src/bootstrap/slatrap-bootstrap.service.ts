@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { Slatrap } from '../../packages/slatrap/src';
-import { EventBusService, PROVIDER_ERROR_EVENT } from '../../packages/slatrap-engine/src';
+import { Slatrap } from '@slatrap/slatrap';
+import { EventBusService, PROVIDER_ERROR_EVENT } from '@slatrap/slatrap-engine';
 
 @Injectable()
 export class SlatrapBootstrapService implements OnModuleInit {

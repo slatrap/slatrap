@@ -12,8 +12,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import { Slatrap } from '../../packages/slatrap/src';
-import { ProviderErrorInterceptor } from '../../packages/slatrap/src/nestjs';
+import { Slatrap } from '@slatrap/slatrap';
+import { ProviderErrorInterceptor } from '@slatrap/slatrap/nestjs';
 
 /** Replay-attack window: reject webhooks with timestamps older than 5 minutes. */
 const STRIPE_TOLERANCE_SECONDS = 300;

@@ -5,7 +5,7 @@ import {
   isHttpTimeoutError,
   parseHttpTimeoutMs,
   type HttpTimeoutTransportError,
-} from '../../packages/slatrap/src/http/http-timeout';
+} from '@slatrap/slatrap';
 import { type StripeErrorObject } from './stripe-simulator.definitions';
 
 export const DEFAULT_STRIPE_HTTP_TIMEOUT_MS = DEFAULT_HTTP_TIMEOUT_MS;

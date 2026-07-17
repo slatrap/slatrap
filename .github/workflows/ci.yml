@@ -26,9 +26,6 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Build publishable package (slatrap)
-        run: npm run build:slatrap
-
       - name: Typecheck
         run: npm run typecheck
 
@@ -43,4 +40,4 @@ jobs:
         run: npm pack --dry-run
 
       - name: Build
-        run: npm run build
+        run: npx nest build

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { fetchWithTimeout } from '../../packages/slatrap/src/http/http-timeout';
+import { fetchWithTimeout } from '@slatrap/slatrap';
 import { type StripeSimulationSpec } from './stripe-simulator.definitions';
 import {
   readStripeHttpTimeoutMs,
