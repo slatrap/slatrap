@@ -1,6 +1,6 @@
 # Demo app (this repository)
 
-The NestJS app in the repo root demonstrates [`@slatrap/slatrap`](https://www.npmjs.com/package/@slatrap/slatrap) with the in-repo `@slatrap/slatrap-engine` inspector.
+The NestJS app in the repo root demonstrates [`@slatrap/slatrap`](https://www.npmjs.com/package/@slatrap/slatrap) with the publishable workspace package [`@slatrap/slatrap-engine`](../packages/slatrap-engine/README.md).
 
 ## Architecture
 
@@ -155,9 +155,10 @@ npm run typecheck
 
 ## Pack local tarballs (maintainers)
 
-To test a pre-release tarball instead of the registry:
+To test pre-release tarballs instead of the registry:
 
 ```bash
-npm run build:slatrap
+npm run build:packages
 cd packages/slatrap && npm pack
+cd ../slatrap-engine && npm pack
 ```
