@@ -1,6 +1,6 @@
 import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Slatrap } from '../../packages/slatrap/src';
+import { Slatrap } from '@slatrap/slatrap';
 import { StripeSimulatorApiClient } from './stripe-simulator-api.client';
 import {
   readStripeHttpTimeoutMs,

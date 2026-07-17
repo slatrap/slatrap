@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   createAxiosLatencyHooks,
   Slatrap,
-} from '../../../packages/slatrap/src';
+} from '@slatrap/slatrap';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
 
 export function createPlaidSimulationAxiosHooks(params: {

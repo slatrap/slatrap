@@ -2,7 +2,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { emitProviderLatency, Slatrap } from '../../../packages/slatrap/src';
+import { emitProviderLatency, Slatrap } from '@slatrap/slatrap';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
 import { type PlaidSimulationOptions } from './plaid-simulation-options';
 

@@ -4,7 +4,7 @@ import * as Joi from 'joi';
 import {
   createInspectorCoreOptionsFromConfigService,
   InspectorCoreModule,
-} from '../packages/slatrap-engine/src';
+} from '@slatrap/slatrap-engine';
 
 const appValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
