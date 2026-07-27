@@ -45,6 +45,48 @@ describe('Slatrap', () => {
     });
   });
 
+  it('emits structured provider errors when defaultProvider is set', async () => {
+    const emit = jest.fn();
+    const slatrap = createSlatrap({ emit });
+    const interceptor = createAxiosResponseErrorInterceptor(slatrap, {
+      defaultProvider: 'plaid',
+      resolveEndpoint: () => '/plaid/item-login-required',
+      resolveStartedAt: () => 9_000,
+      mapResponseData: (data) =>
+        typeof data === 'object' &&
+        data !== null &&
+        'plaid' in data &&
+        typeof (data as { plaid: unknown }).plaid === 'object' &&
+        (data as { plaid: unknown }).plaid !== null
+          ? (data as { plaid: Record<string, unknown> }).plaid
+          : data,
+    });
+    const error = Object.assign(new Error('Request failed with status code 400'), {
+      response: {
+        status: 400,
+        data: {
+          plaid: {
+            error_code: 'ITEM_LOGIN_REQUIRED',
+            access_token: 'secret',
+          },
+        },
+      },
+    });
+
+    await expect(interceptor(error)).rejects.toBe(error);
+
+    expect(emit).toHaveBeenCalledWith({
+      provider: 'plaid',
+      endpoint: '/plaid/item-login-required',
+      statusCode: 400,
+      latency: expect.any(Number),
+      providerPayload: {
+        error_code: 'ITEM_LOGIN_REQUIRED',
+        access_token: '[REDACTED]',
+      },
+    });
+  });
+
   it('sanitizes and emits through the axios response interceptor helper', async () => {
     const emit = jest.fn();
     const slatrap = createSlatrap({ emit });

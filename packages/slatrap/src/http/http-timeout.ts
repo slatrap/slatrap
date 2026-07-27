@@ -30,6 +30,8 @@ export type AxiosErrorInterceptorOptions = {
   defaultProvider?: string;
   resolveEndpoint?: (error: unknown) => string | undefined;
   resolveTimeoutMs?: (error: unknown) => number | undefined;
+  resolveStartedAt?: (error: unknown) => number | undefined;
+  mapResponseData?: (responseData: unknown, error: unknown) => unknown;
 };
 
 export function parseHttpTimeoutMs(
@@ -125,20 +127,81 @@ export function resolveEmitPayloadForHttpError(
   error: unknown,
   options: AxiosErrorInterceptorOptions | undefined,
 ): SanitizedValue {
-  if (!isHttpTimeoutError(error)) {
-    return error as SanitizedValue;
+  const startedAt = options?.resolveStartedAt?.(error);
+
+  if (isHttpTimeoutError(error)) {
+    const timeoutMs =
+      options?.resolveTimeoutMs?.(error) ??
+      resolveAxiosTimeoutMs(error) ??
+      DEFAULT_HTTP_TIMEOUT_MS;
+
+    return buildHttpTimeoutEmitPayload({
+      provider: options?.defaultProvider ?? 'unknown',
+      endpoint: options?.resolveEndpoint?.(error),
+      timeoutMs,
+      startedAt,
+    });
   }
 
-  const timeoutMs =
-    options?.resolveTimeoutMs?.(error) ??
-    resolveAxiosTimeoutMs(error) ??
-    DEFAULT_HTTP_TIMEOUT_MS;
+  if (options?.defaultProvider) {
+    return buildProviderErrorEmitPayload(error, options, startedAt);
+  }
 
-  return buildHttpTimeoutEmitPayload({
-    provider: options?.defaultProvider ?? 'unknown',
-    endpoint: options?.resolveEndpoint?.(error),
-    timeoutMs,
-  });
+  return error as SanitizedValue;
+}
+
+function buildProviderErrorEmitPayload(
+  error: unknown,
+  options: AxiosErrorInterceptorOptions,
+  startedAt: number | undefined,
+): SanitizedValue {
+  const response = readAxiosResponse(error);
+  const responseData = response?.data;
+  const mappedData = options.mapResponseData
+    ? options.mapResponseData(responseData, error)
+    : responseData;
+
+  const payload: Record<string, SanitizedValue> = {
+    provider: options.defaultProvider ?? 'unknown',
+    statusCode: readResponseStatus(response),
+    providerPayload: (mappedData ?? error) as SanitizedValue,
+  };
+
+  const endpoint = options.resolveEndpoint?.(error);
+  if (endpoint !== undefined) {
+    payload.endpoint = endpoint;
+  }
+
+  if (startedAt !== undefined) {
+    payload.startedAt = startedAt;
+  }
+
+  return payload;
+}
+
+function readAxiosResponse(error: unknown):
+  | { status?: unknown; data?: unknown }
+  | undefined {
+  if (typeof error !== 'object' || error === null) {
+    return undefined;
+  }
+
+  const response = (error as { response?: unknown }).response;
+  if (typeof response !== 'object' || response === null) {
+    return undefined;
+  }
+
+  return response as { status?: unknown; data?: unknown };
+}
+
+function readResponseStatus(
+  response: { status?: unknown } | undefined,
+): number | null {
+  if (typeof response?.status === 'number' && Number.isFinite(response.status)) {
+    return response.status;
+  }
+
+  return null;
 }
 
 export async function fetchWithTimeout(

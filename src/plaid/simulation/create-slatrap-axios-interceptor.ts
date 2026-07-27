@@ -1,52 +1,48 @@
-import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import {
   createAxiosLatencyHooks,
-  Slatrap,
+  createAxiosResponseErrorInterceptor,
 } from '@slatrap/slatrap';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
 
+/**
+ * Thin Plaid-simulation wiring around SDK Axios helpers:
+ * latency hooks + createAxiosResponseErrorInterceptor (timeout-aware emit).
+ */
 export function createPlaidSimulationAxiosHooks(params: {
   configService: ConfigService;
   endpoint: string;
   startedAt: number;
 }) {
+  const captureError = createAxiosResponseErrorInterceptor(undefined, {
+    defaultProvider: 'plaid',
+    resolveEndpoint: () => params.endpoint,
+    resolveStartedAt: () => params.startedAt,
+    mapResponseData: (responseData) =>
+      mapPlaidSimulationResponseData(responseData, params.configService),
+  });
+
   return createAxiosLatencyHooks({
     provider: 'plaid',
     endpoint: params.endpoint,
     startedAt: params.startedAt,
-    onError: (error) => createPlaidSimulationErrorInterceptor(params)(error),
+    onError: captureError,
   });
 }
 
-function createPlaidSimulationErrorInterceptor(params: {
-  configService: ConfigService;
-  endpoint: string;
-  startedAt: number;
-}) {
-  return (error: unknown) => {
-    const axiosError = axios.isAxiosError(error) ? error : null;
-    const responsePayload = extractProviderPayload(axiosError?.response?.data);
-    const payloadWithMetadata = responsePayload
-      ? withPlaidSimulationMetadata(responsePayload, params.configService)
-      : error;
-    const providerPayload = Slatrap.sanitize(payloadWithMetadata);
+function mapPlaidSimulationResponseData(
+  responseData: unknown,
+  configService: ConfigService,
+): unknown {
+  const providerPayload = unwrapPlaidPayload(responseData);
+  if (!providerPayload) {
+    return responseData;
+  }
 
-    void Slatrap.emit({
-      provider: 'plaid',
-      endpoint: params.endpoint,
-      startedAt: params.startedAt,
-      providerPayload,
-      statusCode: axiosError?.response?.status ?? null,
-    });
-
-    return Promise.reject(
-      error instanceof Error ? error : new Error(String(error)),
-    );
-  };
+  return withPlaidSimulationMetadata(providerPayload, configService);
 }
 
-function extractProviderPayload(
+function unwrapPlaidPayload(
   responseData: unknown,
 ): Record<string, unknown> | null {
   if (!isRecord(responseData)) {
