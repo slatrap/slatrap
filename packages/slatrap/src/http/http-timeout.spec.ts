@@ -67,6 +67,7 @@ describe('http-timeout', () => {
           defaultProvider: 'stripe',
           resolveEndpoint: () => '/payment_intents',
           resolveTimeoutMs: () => 12_000,
+          resolveStartedAt: () => 1_000,
         },
       );
 
@@ -75,13 +76,55 @@ describe('http-timeout', () => {
           provider: 'stripe',
           endpoint: '/payment_intents',
           timeoutMs: 12_000,
+          startedAt: 1_000,
         }),
       );
     });
 
-    it('returns the original error for non-timeout failures', () => {
+    it('returns the original error for non-timeout failures without defaultProvider', () => {
       const error = { message: 'boom' };
       expect(resolveEmitPayloadForHttpError(error, undefined)).toBe(error);
+    });
+
+    it('builds a structured provider error emit payload when defaultProvider is set', () => {
+      const error = {
+        message: 'Request failed',
+        response: {
+          status: 400,
+          data: {
+            plaid: {
+              error_code: 'ITEM_LOGIN_REQUIRED',
+            },
+          },
+        },
+      };
+
+      expect(
+        resolveEmitPayloadForHttpError(error, {
+          defaultProvider: 'plaid',
+          resolveEndpoint: () => '/plaid/item-login-required',
+          resolveStartedAt: () => 5_000,
+          mapResponseData: (data) => {
+            if (
+              typeof data === 'object' &&
+              data !== null &&
+              'plaid' in data &&
+              typeof (data as { plaid: unknown }).plaid === 'object'
+            ) {
+              return (data as { plaid: Record<string, unknown> }).plaid;
+            }
+            return data;
+          },
+        }),
+      ).toEqual({
+        provider: 'plaid',
+        endpoint: '/plaid/item-login-required',
+        statusCode: 400,
+        startedAt: 5_000,
+        providerPayload: {
+          error_code: 'ITEM_LOGIN_REQUIRED',
+        },
+      });
     });
   });
 
