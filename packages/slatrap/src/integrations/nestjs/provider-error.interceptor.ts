@@ -46,7 +46,7 @@ type HttpRequestLike = {
  * 2. Detects provider from error response payload via a pluggable provider detector registry
  * 3. Extracts HTTP endpoint and status code
  * 4. Sanitizes sensitive data (access tokens, secrets)
- * 5. Emits structured SlatrapProviderErrorEvent through Slatrap.emit()
+ * 5. Emits via Slatrap.sanitize / Slatrap.emit (emit normalizes the provider-error envelope)
  * 6. Re-throws original error to preserve HTTP response behavior
  *
  * Double-emit guard:
@@ -72,13 +72,18 @@ export class ProviderErrorInterceptor implements NestInterceptor {
         }
 
         const emitStartedAt = this.readEmitStartedAt(responsePayload, startedAt);
+        const provider = detectProvider(responsePayload);
+
+        if (!provider) {
+          return throwError(() => error);
+        }
 
         void Slatrap.emit(
           Slatrap.sanitize({
-            provider: detectProvider(responsePayload),
+            provider,
             endpoint,
             statusCode: this.readStatusCode(error),
-            providerPayload: Slatrap.sanitize(this.omitStartedAt(responsePayload)),
+            providerPayload: this.omitStartedAt(responsePayload),
             startedAt: emitStartedAt,
           }),
         );

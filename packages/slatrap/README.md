@@ -55,17 +55,19 @@ configureSlatrap({
   },
 });
 
-// Later, from services, interceptors, or catch blocks
-void Slatrap.emit({
+// Sanitize without emitting (logs, local handling, etc.)
+const safe = Slatrap.sanitize({
   provider: 'plaid',
   endpoint: '/plaid/transactions/get',
   statusCode: 400,
   providerPayload: {
     error_code: 'ITEM_LOGIN_REQUIRED',
-    error_type: 'ITEM_ERROR',
-    request_id: 'req_123',
+    access_token: 'secret',
   },
 });
+
+// Emit through Slatrap — emit normalizes the provider-error envelope
+void Slatrap.emit(safe);
 ```
 
 **NestJS:** configure in `main.ts` before `listen()`, then attach `ProviderErrorInterceptor` on controllers (see [Nest example](#nestjs-interceptor) below). Failed HTTP calls to providers will sanitize and emit without extra boilerplate in each route.
@@ -263,8 +265,9 @@ Whitelisted top-level fields (e.g. `provider`, `endpoint`, `statusCode`, `provid
 | `isHttpTimeoutError` / `buildHttpTimeoutEmitPayload`  | Detect HTTP timeouts and build a provider-agnostic emit payload (`504`, `error_type: timeout`)                                                       |
 | `fetchWithTimeout`                                     | `fetch` with `AbortSignal.timeout`; optional `formatTimeoutError` for provider-specific transport errors                                            |
 | `createAxiosLatencyHooks` / `emitProviderLatency`      | Emit provider latency telemetry for success and error paths (core event: `provider.latency`)                                                         |
-| `buildProviderLatencyEmitPayload`                      | Build a core latency event envelope from provider/endpoint/timing inputs                                                                              |
 | `PROVIDER_LATENCY_EVENT_NAME`                          | Constant event name for provider latency envelopes (`provider.latency`)                                                                               |
+| `buildProviderLatencyEmitPayload`                      | Build a core latency event envelope from provider/endpoint/timing inputs                                                                              |
+| `ProviderErrorEmitInput`                               | Type for provider-error fields passed to `Slatrap.emit` (envelope defaults applied inside emit)                                                       |
 | `resolveAxiosResponseStatus`                           | Extract HTTP status from Axios responses/errors for latency/error classification                                                                       |
 | `@slatrap/slatrap/nestjs` → `ProviderErrorInterceptor` | Nest HTTP interceptor (peer: `@nestjs/common`, `rxjs`)                                                                                                |
 | `configureSlatrapForCoreInspector`                     | Map emits to your event bus by event name                                                                                                             |
