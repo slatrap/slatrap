@@ -1,5 +1,6 @@
 import { sanitizeBeforeEmit } from './slatrap-emit-guard';
 import { resolveEmitLatency } from './resolve-emit-latency';
+import { normalizeProviderErrorEmitPayload } from './provider-error-emit';
 import {
   type ConfigurableSlatrap,
   type ConfigureSlatrapForCoreInspectorOptions,
@@ -52,7 +53,8 @@ export class SlatrapContext implements ConfigurableSlatrap {
   }
 
   emit(payload: SanitizedValue): void | Promise<void> {
-    const payloadWithLatency = resolveEmitLatency(payload);
+    const normalizedPayload = normalizeProviderErrorEmitPayload(payload);
+    const payloadWithLatency = resolveEmitLatency(normalizedPayload);
     const sanitizedPayload = sanitizeBeforeEmit(
       payloadWithLatency,
       this.configuredRedactionText,

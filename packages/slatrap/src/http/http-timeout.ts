@@ -63,28 +63,21 @@ export function buildHttpTimeoutMessage(timeoutMs: number): string {
   return `HTTP request timed out after ${timeoutMs}ms`;
 }
 
+/** Builds timeout fields for `Slatrap.emit` (envelope defaults applied inside emit). */
 export function buildHttpTimeoutEmitPayload(
   input: HttpTimeoutEmitInput,
 ): SanitizedValue {
-  const payload: Record<string, SanitizedValue> = {
+  return {
     provider: input.provider,
+    endpoint: input.endpoint,
     statusCode: HTTP_TIMEOUT_STATUS_CODE,
+    startedAt: input.startedAt,
     providerPayload: {
       error_type: 'timeout',
       code: 'timeout',
       message: buildHttpTimeoutMessage(input.timeoutMs),
     },
-  };
-
-  if (input.endpoint !== undefined) {
-    payload.endpoint = input.endpoint;
-  }
-
-  if (input.startedAt !== undefined) {
-    payload.startedAt = input.startedAt;
-  }
-
-  return payload;
+  } as SanitizedValue;
 }
 
 export function buildHttpTimeoutTransportError(options: {
@@ -144,13 +137,13 @@ export function resolveEmitPayloadForHttpError(
   }
 
   if (options?.defaultProvider) {
-    return buildProviderErrorEmitPayload(error, options, startedAt);
+    return buildAxiosProviderErrorEmitPayload(error, options, startedAt);
   }
 
   return error as SanitizedValue;
 }
 
-function buildProviderErrorEmitPayload(
+function buildAxiosProviderErrorEmitPayload(
   error: unknown,
   options: AxiosErrorInterceptorOptions,
   startedAt: number | undefined,
@@ -161,22 +154,13 @@ function buildProviderErrorEmitPayload(
     ? options.mapResponseData(responseData, error)
     : responseData;
 
-  const payload: Record<string, SanitizedValue> = {
+  return {
     provider: options.defaultProvider ?? 'unknown',
+    endpoint: options.resolveEndpoint?.(error),
     statusCode: readResponseStatus(response),
-    providerPayload: (mappedData ?? error) as SanitizedValue,
-  };
-
-  const endpoint = options.resolveEndpoint?.(error);
-  if (endpoint !== undefined) {
-    payload.endpoint = endpoint;
-  }
-
-  if (startedAt !== undefined) {
-    payload.startedAt = startedAt;
-  }
-
-  return payload;
+    providerPayload: mappedData ?? error,
+    startedAt,
+  } as SanitizedValue;
 }
 
 function readAxiosResponse(error: unknown):

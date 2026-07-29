@@ -160,6 +160,7 @@ describe('Slatrap', () => {
 
     expect(emit).toHaveBeenCalledWith({
       provider: 'plaid',
+      statusCode: null,
       providerPayload: {
         access_token: '[REDACTED]',
       },
@@ -167,6 +168,26 @@ describe('Slatrap', () => {
     expect(warnSpy).toHaveBeenCalledWith(
       '[Slatrap] emit() received payload with sensitive fields. Call Slatrap.sanitize(...) before emit.',
     );
+  });
+
+  it('normalizes provider-error envelopes on emit', async () => {
+    const emit = jest.fn();
+    Slatrap.configure({ emit });
+
+    await Slatrap.emit(
+      Slatrap.sanitize({
+        provider: 'stripe',
+        endpoint: '/v1/charges',
+        providerPayload: { code: 'card_declined' },
+      }),
+    );
+
+    expect(emit).toHaveBeenCalledWith({
+      provider: 'stripe',
+      endpoint: '/v1/charges',
+      statusCode: null,
+      providerPayload: { code: 'card_declined' },
+    });
   });
 
   it('does not warn when emit is called with already sanitized payload', async () => {
