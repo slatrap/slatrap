@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable, catchError, throwError } from 'rxjs';
 import { detectProvider } from '../../core/detect-provider';
+import { type StructuredValue } from '../../sanitization/sanitizer';
 import { Slatrap } from '../../index';
 
 type HttpRequestLike = {
@@ -45,9 +46,8 @@ type HttpRequestLike = {
  * 1. Catches all HTTP request pipeline errors (HttpException and raw errors)
  * 2. Detects provider from error response payload via a pluggable provider detector registry
  * 3. Extracts HTTP endpoint and status code
- * 4. Sanitizes sensitive data (access tokens, secrets)
- * 5. Emits via Slatrap.sanitize / Slatrap.emit (emit normalizes the provider-error envelope)
- * 6. Re-throws original error to preserve HTTP response behavior
+ * 4. Sanitizes once, then emits (emit normalizes the envelope; does not sanitize again)
+ * 5. Re-throws original error to preserve HTTP response behavior
  *
  * Double-emit guard:
  * If the error response is already wrapped as { plaid: {...} } or { stripe: {...} },
@@ -78,15 +78,18 @@ export class ProviderErrorInterceptor implements NestInterceptor {
           return throwError(() => error);
         }
 
-        void Slatrap.emit(
-          Slatrap.sanitize({
-            provider,
-            endpoint,
-            statusCode: this.readStatusCode(error),
-            providerPayload: this.omitStartedAt(responsePayload),
-            startedAt: emitStartedAt,
-          }),
-        );
+        const payload: Record<string, StructuredValue> = {
+          provider,
+          statusCode: this.readStatusCode(error),
+          providerPayload: this.omitStartedAt(responsePayload),
+          startedAt: emitStartedAt,
+        };
+
+        if (endpoint !== undefined) {
+          payload.endpoint = endpoint;
+        }
+
+        void Slatrap.emit(Slatrap.sanitize(payload));
 
         return throwError(() => error);
       }),
@@ -164,11 +167,13 @@ export class ProviderErrorInterceptor implements NestInterceptor {
     return fallbackStartedAt;
   }
 
-  private omitStartedAt(payload: unknown): unknown {
-    if (!this.isRecord(payload)) return payload;
+  private omitStartedAt(payload: unknown): StructuredValue {
+    if (!this.isRecord(payload)) {
+      return payload as StructuredValue;
+    }
 
     const { startedAt: _startedAt, ...rest } = payload;
-    return rest;
+    return rest as StructuredValue;
   }
 
   private isRecord(value: unknown): value is Record<string, unknown> {

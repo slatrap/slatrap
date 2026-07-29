@@ -15,7 +15,6 @@ import {
   toCoreEventEnvelope,
   toProviderErrorEvent,
 } from './core/slatrap-event-mappers';
-import { sanitizeBeforeEmit } from './core/slatrap-emit-guard';
 import { resolveEmitLatency } from './core/resolve-emit-latency';
 import { normalizeProviderErrorEmitPayload } from './core/provider-error-emit';
 import {
@@ -69,11 +68,7 @@ export function createSlatrap(options: SlatrapOptions): SlatrapApi {
     emit(payload: SanitizedValue) {
       const normalizedPayload = normalizeProviderErrorEmitPayload(payload);
       const payloadWithLatency = resolveEmitLatency(normalizedPayload);
-      const sanitizedPayload = sanitizeBeforeEmit(
-        payloadWithLatency,
-        options.redactionText,
-      );
-      return options.emit(sanitizedPayload);
+      return options.emit(payloadWithLatency);
     },
   };
 }
@@ -84,7 +79,7 @@ export function createAxiosResponseErrorInterceptor(
 ) {
   return (error: unknown): Promise<never> => {
     const payload = resolveEmitPayloadForHttpError(error, options);
-    void slatrap.emit(payload);
+    void slatrap.emit(slatrap.sanitize(payload));
 
     if (error instanceof Error) {
       return Promise.reject(error);
@@ -135,6 +130,7 @@ export {
   sanitizeErrorData,
   type SanitizedValue,
   type SanitizerOptions,
+  type StructuredValue,
 } from './sanitization/sanitizer';
 
 export type {

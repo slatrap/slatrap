@@ -4,6 +4,7 @@ import {
   buildProviderLatencyEmitPayload,
   type ProviderLatencyEmitInput,
 } from '../core/provider-latency-emit';
+import { sanitizeErrorData } from '../sanitization/sanitizer';
 
 export type AxiosLatencyHooksOptions = {
   provider: string;
@@ -16,7 +17,7 @@ export function emitProviderLatency(
   slatrap: SlatrapApi,
   input: ProviderLatencyEmitInput,
 ): void {
-  void slatrap.emit(buildProviderLatencyEmitPayload(input));
+  void slatrap.emit(sanitizeErrorData(buildProviderLatencyEmitPayload(input)));
 }
 export function resolveAxiosResponseStatus(error: unknown): number | null {
   if (!axios.isAxiosError(error)) {

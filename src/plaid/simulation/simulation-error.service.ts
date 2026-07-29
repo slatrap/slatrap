@@ -2,7 +2,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { emitProviderLatency, Slatrap } from '@slatrap/slatrap';
+import { emitProviderLatency, Slatrap, type StructuredValue } from '@slatrap/slatrap';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
 import { type PlaidSimulationOptions } from './plaid-simulation-options';
 
@@ -55,14 +55,14 @@ export class PlaidSimulationErrorService {
   }
 
   private readScenarioError(key: string): {
-    data: Record<string, unknown>;
+    data: Record<string, StructuredValue>;
     status: number;
   } {
     const payload = this.readTestCase(key);
     const status = this.inferHttpStatus(payload);
 
     return {
-      data: payload as Record<string, unknown>,
+      data: payload as Record<string, StructuredValue>,
       status,
     };
   }

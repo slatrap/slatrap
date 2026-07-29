@@ -1,4 +1,7 @@
-import { type SanitizedValue } from '../sanitization/sanitizer';
+import {
+  type SanitizedValue,
+  type StructuredValue,
+} from '../sanitization/sanitizer';
 
 export type ProviderErrorEmitInput = {
   provider: string;
@@ -9,16 +12,16 @@ export type ProviderErrorEmitInput = {
 };
 
 /**
- * Builds the standard provider-error envelope.
- * Package-internal — callers should pass plain fields to `Slatrap.emit`, which normalizes here.
+ * Rebuilds the standard provider-error envelope.
+ * Used inside emit on already-sanitized payloads.
  */
 export function buildProviderErrorEmitPayload(
   input: ProviderErrorEmitInput,
 ): SanitizedValue {
-  const payload: Record<string, unknown> = {
+  const payload: Record<string, StructuredValue> = {
     provider: input.provider,
     statusCode: input.statusCode ?? null,
-    providerPayload: input.providerPayload,
+    providerPayload: input.providerPayload as StructuredValue,
   };
 
   if (input.endpoint !== undefined) {
@@ -29,7 +32,7 @@ export function buildProviderErrorEmitPayload(
     payload.startedAt = input.startedAt;
   }
 
-  return payload as SanitizedValue;
+  return payload as unknown as SanitizedValue;
 }
 
 /** When emit receives a provider-error shaped payload, normalize defaults via the builder. */

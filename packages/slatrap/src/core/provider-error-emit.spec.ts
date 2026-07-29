@@ -2,7 +2,7 @@ import {
   buildProviderErrorEmitPayload,
   normalizeProviderErrorEmitPayload,
 } from './provider-error-emit';
-import { type SanitizedValue } from '../sanitization/sanitizer';
+import { sanitizeErrorData } from '../sanitization/sanitizer';
 import { PROVIDER_LATENCY_EVENT_NAME } from './provider-latency-emit';
 
 describe('buildProviderErrorEmitPayload', () => {
@@ -41,10 +41,12 @@ describe('buildProviderErrorEmitPayload', () => {
 describe('normalizeProviderErrorEmitPayload', () => {
   it('normalizes provider-error shaped payloads', () => {
     expect(
-      normalizeProviderErrorEmitPayload({
-        provider: 'stripe',
-        providerPayload: { code: 'card_declined' },
-      } as SanitizedValue),
+      normalizeProviderErrorEmitPayload(
+        sanitizeErrorData({
+          provider: 'stripe',
+          providerPayload: { code: 'card_declined' },
+        }),
+      ),
     ).toEqual({
       provider: 'stripe',
       statusCode: null,
@@ -53,20 +55,23 @@ describe('normalizeProviderErrorEmitPayload', () => {
   });
 
   it('leaves core event envelopes unchanged', () => {
-    const coreEvent = {
+    const coreEvent = sanitizeErrorData({
       eventName: PROVIDER_LATENCY_EVENT_NAME,
       payload: {
         provider: 'plaid',
         providerPayload: { ignored: true },
         startedAt: 1_000,
       },
-    } as SanitizedValue;
+    });
 
-    expect(normalizeProviderErrorEmitPayload(coreEvent)).toBe(coreEvent);
+    expect(normalizeProviderErrorEmitPayload(coreEvent)).toEqual(coreEvent);
   });
 
   it('leaves non-provider-error payloads unchanged', () => {
-    const raw = { message: 'boom', access_token: 'secret' } as SanitizedValue;
-    expect(normalizeProviderErrorEmitPayload(raw)).toBe(raw);
+    const raw = sanitizeErrorData({
+      message: 'boom',
+      access_token: 'secret',
+    });
+    expect(normalizeProviderErrorEmitPayload(raw)).toEqual(raw);
   });
 });

@@ -55,19 +55,18 @@ configureSlatrap({
   },
 });
 
-// Sanitize without emitting (logs, local handling, etc.)
-const safe = Slatrap.sanitize({
-  provider: 'plaid',
-  endpoint: '/plaid/transactions/get',
-  statusCode: 400,
-  providerPayload: {
-    error_code: 'ITEM_LOGIN_REQUIRED',
-    access_token: 'secret',
-  },
-});
-
-// Emit through Slatrap — emit normalizes the provider-error envelope
-void Slatrap.emit(safe);
+// Sanitize once, then emit (emit does not sanitize again)
+void Slatrap.emit(
+  Slatrap.sanitize({
+    provider: 'plaid',
+    endpoint: '/plaid/transactions/get',
+    statusCode: 400,
+    providerPayload: {
+      error_code: 'ITEM_LOGIN_REQUIRED',
+      access_token: 'secret',
+    },
+  }),
+);
 ```
 
 **NestJS:** configure in `main.ts` before `listen()`, then attach `ProviderErrorInterceptor` on controllers (see [Nest example](#nestjs-interceptor) below). Failed HTTP calls to providers will sanitize and emit without extra boilerplate in each route.
@@ -258,7 +257,9 @@ Whitelisted top-level fields (e.g. `provider`, `endpoint`, `statusCode`, `provid
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sanitizeErrorData`                                    | Redact sensitive fields on any value                                                                                                                  |
 | `SENSITIVE_KEY_PATTERNS`                               | Default regex list for sensitive keys ([source](https://github.com/slatrap/slatrap/blob/main/packages/slatrap/src/sanitization/sanitizer.ts#L66-L94)) |
-| `Slatrap.sanitize` / `Slatrap.emit`                    | Global sanitize + emit API                                                                                                                            |
+| `Slatrap.sanitize` / `Slatrap.emit`                    | Sanitize once (returns branded `SanitizedValue`), then emit (normalize only; no second sanitize)                                                      |
+| `StructuredValue`                                      | JSON-shaped value before sanitize                                                                                                                     |
+| `SanitizedValue`                                       | Output of `sanitize`; required input for `emit`                                                                                                       |
 | `configureSlatrap`                                     | Set global `emit` handler and redaction defaults (call once at startup)                                                                               |
 | `createSlatrap`                                        | Non-global instance with its own handler                                                                                                              |
 | `createAxiosResponseErrorInterceptor`                  | Axios error middleware; normalizes timeout failures before `emit` (optional `defaultProvider`, `resolveEndpoint`, `resolveTimeoutMs`)              |

@@ -1,12 +1,22 @@
 import { z } from 'zod';
 
-export type SanitizedValue =
+/** JSON-shaped value. May still contain secrets until passed through sanitize. */
+export type StructuredValue =
   | string
   | number
   | boolean
   | null
-  | SanitizedValue[]
-  | { [key: string]: SanitizedValue };
+  | StructuredValue[]
+  | { [key: string]: StructuredValue };
+
+declare const sanitizedBrand: unique symbol;
+
+/**
+ * Output of `Slatrap.sanitize` / `sanitizeErrorData`.
+ */
+export type SanitizedValue = StructuredValue & {
+  readonly [sanitizedBrand]: true;
+};
 
 export type SanitizerOptions = {
   redactionText?: string;
@@ -26,6 +36,7 @@ const DEFAULT_WHITELIST_CANDIDATES = [
   'statusCode',
   'latency',
   'startedAt',
+  'success',
   'providerPayload',
   'eventName',
   'payload',
@@ -94,16 +105,21 @@ export const SENSITIVE_KEY_PATTERNS = [
   /^payment[_-]?method$/i,
 ];
 
-const sanitizedValueSchema: z.ZodType<SanitizedValue> = z.lazy(() =>
+const structuredValueSchema: z.ZodType<StructuredValue> = z.lazy(() =>
   z.union([
     z.string(),
     z.number(),
     z.boolean(),
     z.null(),
-    z.array(sanitizedValueSchema),
-    z.record(z.string(), sanitizedValueSchema),
+    z.array(structuredValueSchema),
+    z.record(z.string(), structuredValueSchema),
   ]),
 );
+
+/** Brands a structured value as sanitized (sanitize output only). */
+function markSanitized(value: StructuredValue): SanitizedValue {
+  return value as SanitizedValue;
+}
 
 export const sanitizeErrorData: Sanitizer = (
   value,
@@ -117,16 +133,16 @@ export const sanitizeErrorData: Sanitizer = (
     new WeakSet(),
     whitelist,
   );
-  const parsed = sanitizedValueSchema.safeParse(sanitized);
+  const parsed = structuredValueSchema.safeParse(sanitized);
 
   if (parsed.success) {
-    return parsed.data;
+    return markSanitized(parsed.data);
   }
 
-  return {
+  return markSanitized({
     message: 'Unable to sanitize error payload',
     issues: parsed.error.issues.map((issue) => issue.message),
-  };
+  });
 };
 
 function sanitizeUnknown(
@@ -134,7 +150,7 @@ function sanitizeUnknown(
   redactionText: string,
   seen: WeakSet<object>,
   whitelist?: Set<string>,
-): SanitizedValue {
+): StructuredValue {
   if (value === null || value === undefined) {
     return null;
   }
@@ -193,7 +209,7 @@ function sanitizeUnknown(
   }
 
   const record = value as Record<string, unknown>;
-  const sanitizedRecord: Record<string, SanitizedValue> = {};
+  const sanitizedRecord: Record<string, StructuredValue> = {};
 
   for (const [key, entry] of Object.entries(record)) {
     if (whitelist && !whitelist.has(key)) {

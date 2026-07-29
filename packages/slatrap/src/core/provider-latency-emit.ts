@@ -1,4 +1,4 @@
-import { type SanitizedValue } from '../sanitization/sanitizer';
+import { type StructuredValue } from '../sanitization/sanitizer';
 
 /** Must match `@slatrap/slatrap-engine` `PROVIDER_LATENCY_EVENT`. */
 export const PROVIDER_LATENCY_EVENT_NAME = 'provider.latency';
@@ -9,13 +9,13 @@ export type ProviderLatencyEmitInput = {
   startedAt: number;
   success: boolean;
   statusCode?: number | null;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, StructuredValue>;
 };
 
 export function buildProviderLatencyEmitPayload(
   input: ProviderLatencyEmitInput,
-): SanitizedValue {
-  const payload: Record<string, unknown> = {
+): StructuredValue {
+  const payload: Record<string, StructuredValue> = {
     provider: input.provider,
     endpoint: input.endpoint,
     startedAt: input.startedAt,
@@ -29,6 +29,6 @@ export function buildProviderLatencyEmitPayload(
 
   return {
     eventName: PROVIDER_LATENCY_EVENT_NAME,
-    payload: payload as SanitizedValue,
+    payload,
   };
 }
