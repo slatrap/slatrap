@@ -1,4 +1,4 @@
-import { type SanitizedValue } from '../sanitization/sanitizer';
+import { type StructuredValue } from '../sanitization/sanitizer';
 
 export const DEFAULT_HTTP_TIMEOUT_MS = 30_000;
 export const HTTP_TIMEOUT_STATUS_CODE = 504;
@@ -63,21 +63,29 @@ export function buildHttpTimeoutMessage(timeoutMs: number): string {
   return `HTTP request timed out after ${timeoutMs}ms`;
 }
 
-/** Builds timeout fields for `Slatrap.emit` (envelope defaults applied inside emit). */
+/** Builds timeout fields for sanitize + emit (envelope defaults applied inside emit). */
 export function buildHttpTimeoutEmitPayload(
   input: HttpTimeoutEmitInput,
-): SanitizedValue {
-  return {
+): StructuredValue {
+  const payload: Record<string, StructuredValue> = {
     provider: input.provider,
-    endpoint: input.endpoint,
     statusCode: HTTP_TIMEOUT_STATUS_CODE,
-    startedAt: input.startedAt,
     providerPayload: {
       error_type: 'timeout',
       code: 'timeout',
       message: buildHttpTimeoutMessage(input.timeoutMs),
     },
-  } as SanitizedValue;
+  };
+
+  if (input.endpoint !== undefined) {
+    payload.endpoint = input.endpoint;
+  }
+
+  if (input.startedAt !== undefined) {
+    payload.startedAt = input.startedAt;
+  }
+
+  return payload;
 }
 
 export function buildHttpTimeoutTransportError(options: {
@@ -119,7 +127,7 @@ export function resolveAxiosTimeoutMs(error: unknown): number | undefined {
 export function resolveEmitPayloadForHttpError(
   error: unknown,
   options: AxiosErrorInterceptorOptions | undefined,
-): SanitizedValue {
+): StructuredValue {
   const startedAt = options?.resolveStartedAt?.(error);
 
   if (isHttpTimeoutError(error)) {
@@ -140,27 +148,28 @@ export function resolveEmitPayloadForHttpError(
     return buildAxiosProviderErrorEmitPayload(error, options, startedAt);
   }
 
-  return error as SanitizedValue;
+  return error as StructuredValue;
 }
 
 function buildAxiosProviderErrorEmitPayload(
   error: unknown,
   options: AxiosErrorInterceptorOptions,
   startedAt: number | undefined,
-): SanitizedValue {
+): StructuredValue {
   const response = readAxiosResponse(error);
   const responseData = response?.data;
   const mappedData = options.mapResponseData
     ? options.mapResponseData(responseData, error)
     : responseData;
+  const endpoint = options.resolveEndpoint?.(error);
 
   return {
     provider: options.defaultProvider ?? 'unknown',
-    endpoint: options.resolveEndpoint?.(error),
     statusCode: readResponseStatus(response),
-    providerPayload: mappedData ?? error,
-    startedAt,
-  } as SanitizedValue;
+    providerPayload: (mappedData ?? error) as StructuredValue,
+    ...(endpoint !== undefined ? { endpoint } : {}),
+    ...(startedAt !== undefined ? { startedAt } : {}),
+  };
 }
 
 function readAxiosResponse(error: unknown):

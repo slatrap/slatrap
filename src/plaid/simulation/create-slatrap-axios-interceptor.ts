@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   createAxiosLatencyHooks,
   createAxiosResponseErrorInterceptor,
+  type StructuredValue,
 } from '@slatrap/slatrap';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
 
@@ -33,7 +34,7 @@ export function createPlaidSimulationAxiosHooks(params: {
 function mapPlaidSimulationResponseData(
   responseData: unknown,
   configService: ConfigService,
-): unknown {
+): StructuredValue | unknown {
   const providerPayload = unwrapPlaidPayload(responseData);
   if (!providerPayload) {
     return responseData;
@@ -44,17 +45,17 @@ function mapPlaidSimulationResponseData(
 
 function unwrapPlaidPayload(
   responseData: unknown,
-): Record<string, unknown> | null {
+): Record<string, StructuredValue> | null {
   if (!isRecord(responseData)) {
     return null;
   }
 
   const nestedPayload = responseData['plaid'];
   if (isRecord(nestedPayload)) {
-    return nestedPayload;
+    return nestedPayload as Record<string, StructuredValue>;
   }
 
-  return responseData;
+  return responseData as Record<string, StructuredValue>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -7,15 +7,8 @@ import {
 } from './index';
 
 describe('Slatrap', () => {
-  let warnSpy: jest.SpyInstance;
-
-  beforeEach(() => {
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-  });
-
   afterEach(() => {
     configureSlatrap({ emit: () => undefined });
-    warnSpy.mockRestore();
   });
 
   it('normalizes axios timeout errors before emit', async () => {
@@ -144,19 +137,20 @@ describe('Slatrap', () => {
         },
       },
     });
-    expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it('warns when emit is called with unsanitized sensitive payload', async () => {
+  it('requires sanitize before emit for provider-error envelopes', async () => {
     const emit = jest.fn();
     Slatrap.configure({ emit });
 
-    await Slatrap.emit({
-      provider: 'plaid',
-      providerPayload: {
-        access_token: 'raw-secret',
-      },
-    });
+    await Slatrap.emit(
+      Slatrap.sanitize({
+        provider: 'plaid',
+        providerPayload: {
+          access_token: 'raw-secret',
+        },
+      }),
+    );
 
     expect(emit).toHaveBeenCalledWith({
       provider: 'plaid',
@@ -165,9 +159,6 @@ describe('Slatrap', () => {
         access_token: '[REDACTED]',
       },
     });
-    expect(warnSpy).toHaveBeenCalledWith(
-      '[Slatrap] emit() received payload with sensitive fields. Call Slatrap.sanitize(...) before emit.',
-    );
   });
 
   it('normalizes provider-error envelopes on emit', async () => {
@@ -190,23 +181,6 @@ describe('Slatrap', () => {
     });
   });
 
-  it('does not warn when emit is called with already sanitized payload', async () => {
-    const emit = jest.fn();
-    Slatrap.configure({ emit });
-
-    const payload = Slatrap.sanitize({
-      provider: 'plaid',
-      providerPayload: {
-        access_token: 'raw-secret',
-      },
-    });
-
-    await Slatrap.emit(payload);
-
-    expect(emit).toHaveBeenCalledTimes(1);
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
   it('configures provider error envelope handling in package helper', async () => {
     const emitProviderError = jest.fn();
 
@@ -215,12 +189,14 @@ describe('Slatrap', () => {
       defaultProvider: 'plaid',
     });
 
-    await Slatrap.emit({
-      endpoint: '/plaid/transactions',
-      statusCode: 429,
-      latency: 42,
-      providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
-    });
+    await Slatrap.emit(
+      Slatrap.sanitize({
+        endpoint: '/plaid/transactions',
+        statusCode: 429,
+        latency: 42,
+        providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
+      }),
+    );
 
     expect(emitProviderError).toHaveBeenCalledWith({
       provider: 'plaid',
@@ -240,12 +216,14 @@ describe('Slatrap', () => {
       defaultProvider: 'plaid',
     });
 
-    await Slatrap.emit({
-      endpoint: '/plaid/transactions',
-      statusCode: 400,
-      latency: 50,
-      providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
-    });
+    await Slatrap.emit(
+      Slatrap.sanitize({
+        endpoint: '/plaid/transactions',
+        statusCode: 400,
+        latency: 50,
+        providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
+      }),
+    );
 
     expect(emit).toHaveBeenCalledWith('provider.error', {
       provider: 'plaid',
