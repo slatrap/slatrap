@@ -1,5 +1,6 @@
 import { resolveEmitLatency } from './resolve-emit-latency';
 import { PROVIDER_LATENCY_EVENT_NAME } from './provider-latency-emit';
+import { sanitizeErrorData } from '../sanitization/sanitizer';
 
 describe('resolveEmitLatency', () => {
   afterEach(() => {
@@ -10,11 +11,13 @@ describe('resolveEmitLatency', () => {
     jest.spyOn(Date, 'now').mockReturnValue(2_500);
 
     expect(
-      resolveEmitLatency({
-        provider: 'plaid',
-        endpoint: '/plaid/item/get',
-        startedAt: 2_000,
-      }),
+      resolveEmitLatency(
+        sanitizeErrorData({
+          provider: 'plaid',
+          endpoint: '/plaid/item/get',
+          startedAt: 2_000,
+        }),
+      ),
     ).toEqual({
       provider: 'plaid',
       endpoint: '/plaid/item/get',
@@ -26,16 +29,18 @@ describe('resolveEmitLatency', () => {
     jest.spyOn(Date, 'now').mockReturnValue(5_000);
 
     expect(
-      resolveEmitLatency({
-        eventName: PROVIDER_LATENCY_EVENT_NAME,
-        payload: {
-          provider: 'plaid',
-          endpoint: '/plaid/slow-response',
-          startedAt: 2_500,
-          success: true,
-          statusCode: 200,
-        },
-      }),
+      resolveEmitLatency(
+        sanitizeErrorData({
+          eventName: PROVIDER_LATENCY_EVENT_NAME,
+          payload: {
+            provider: 'plaid',
+            endpoint: '/plaid/slow-response',
+            startedAt: 2_500,
+            success: true,
+            statusCode: 200,
+          },
+        }),
+      ),
     ).toEqual({
       eventName: PROVIDER_LATENCY_EVENT_NAME,
       payload: {
@@ -52,11 +57,13 @@ describe('resolveEmitLatency', () => {
     jest.spyOn(Date, 'now').mockReturnValue(9_999);
 
     expect(
-      resolveEmitLatency({
-        provider: 'stripe',
-        startedAt: 1_000,
-        latency: 42,
-      }),
+      resolveEmitLatency(
+        sanitizeErrorData({
+          provider: 'stripe',
+          startedAt: 1_000,
+          latency: 42,
+        }),
+      ),
     ).toEqual({
       provider: 'stripe',
       latency: 42,
@@ -64,7 +71,7 @@ describe('resolveEmitLatency', () => {
   });
 
   it('returns payload unchanged when startedAt is absent', () => {
-    const payload = { provider: 'plaid', latency: 10 };
+    const payload = sanitizeErrorData({ provider: 'plaid', latency: 10 });
 
     expect(resolveEmitLatency(payload)).toBe(payload);
   });
