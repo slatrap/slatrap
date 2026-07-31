@@ -181,32 +181,6 @@ describe('Slatrap', () => {
     });
   });
 
-  it('configures provider error envelope handling in package helper', async () => {
-    const emitProviderError = jest.fn();
-
-    Slatrap.configureProviderErrors({
-      emitProviderError,
-      defaultProvider: 'plaid',
-    });
-
-    await Slatrap.emit(
-      Slatrap.sanitize({
-        endpoint: '/plaid/transactions',
-        statusCode: 429,
-        latency: 42,
-        providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
-      }),
-    );
-
-    expect(emitProviderError).toHaveBeenCalledWith({
-      provider: 'plaid',
-      endpoint: '/plaid/transactions',
-      statusCode: 429,
-      latency: 42,
-      providerPayload: { error_code: 'ITEM_LOGIN_REQUIRED' },
-    });
-  });
-
   it('configures provider error emission from core inspector helper', async () => {
     const emit = jest.fn();
 

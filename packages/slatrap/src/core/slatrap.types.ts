@@ -28,12 +28,6 @@ export type SlatrapCoreEventEnvelope = {
   payload: unknown;
 };
 
-export type ConfigureSlatrapForProviderErrorsOptions = {
-  emitProviderError: (event: SlatrapProviderErrorEvent) => void | Promise<void>;
-  defaultProvider?: string;
-  redactionText?: string;
-};
-
 export type ConfigureSlatrapForCoreInspectorOptions = {
   emitter: {
     emit(eventName: string, payload: unknown): void | Promise<void>;
@@ -45,9 +39,6 @@ export type ConfigureSlatrapForCoreInspectorOptions = {
 
 export type ConfigurableSlatrap = Slatrap & {
   configure(options: SlatrapOptions): void;
-  configureProviderErrors(
-    options: ConfigureSlatrapForProviderErrorsOptions,
-  ): void;
   configureForCoreInspector(
     options: ConfigureSlatrapForCoreInspectorOptions,
   ): void;
