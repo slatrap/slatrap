@@ -16,6 +16,10 @@ import {
   resolveIncidentSeverity,
   resolveIncidentSeverityThresholds,
 } from '../../domain/incidents/incident-severity.resolver';
+import {
+  registerDedupedIncident,
+  type DedupBranchOutcome,
+} from './register-deduped-incident';
 
 type CachedErrorIncident = {
   id: number;
@@ -32,6 +36,13 @@ type IncidentWindow = {
   priorIncidentCount: number;
 };
 
+type DbErrorIncident = {
+  id: number;
+  count: number;
+  firstSeenAt: Date;
+  severity: IncidentSeverity;
+};
+
 @Injectable()
 export class ErrorIncidentService {
   constructor(
@@ -39,113 +50,46 @@ export class ErrorIncidentService {
     private readonly prisma: PrismaService,
     @Inject(INSPECTOR_CORE_OPTIONS)
     private readonly options: InspectorCoreModuleOptions,
-  ) { }
+  ) {}
 
   async checkAndRegisterIncident(
     summary: ErrorIncidentSummary,
   ): Promise<ErrorIncidentResult> {
     const dedupWindowSeconds = this.options.errorDedupWindowSeconds ?? 300;
-    const key = summary.fingerprint.cacheKey;
-    const cached = await this.dedupStore.get(key);
-    const now = new Date();
 
-    if (cached) {
-      return this.handleCachedIncident(
-        summary,
-        JSON.parse(cached) as CachedErrorIncident,
-        key,
-        dedupWindowSeconds,
-        now,
-      );
-    }
-
-    const existingInDb = await this.findRecentMatchingIncidentInDb(
-      summary,
-      dedupWindowSeconds,
-      now,
-    );
-
-    if (existingInDb) {
-      const nextCount = existingInDb.count + 1;
-      const priorIncidentCount = await this.countPriorIncidents(
-        summary,
-        new Date(now.getTime() - dedupWindowSeconds * 1000),
-      );
-      const severity = this.resolveSeverity(summary, {
-        count: nextCount,
-        firstSeenAt: existingInDb.firstSeenAt,
-        lastSeenAt: now,
-        priorIncidentCount,
-      });
-
-      await this.updateIncidentRecord(existingInDb.id, summary, severity);
-
-      await this.dedupStore.setex(
-        key,
-        dedupWindowSeconds,
-        JSON.stringify({
-          id: existingInDb.id,
-          count: nextCount,
-          severity,
-          firstSeenAt: existingInDb.firstSeenAt.toISOString(),
-          priorIncidentCount,
-        }),
-      );
-
-      return this.buildDuplicateResult(
-        existingInDb.id,
-        nextCount,
-        existingInDb.severity,
-        severity,
-      );
-    }
-
-    const priorIncidentCount = await this.countPriorIncidents(
-      summary,
-      new Date(now.getTime() - dedupWindowSeconds * 1000),
-    );
-    const severity = this.resolveSeverity(summary, {
-      count: 1,
-      firstSeenAt: now,
-      lastSeenAt: now,
-      priorIncidentCount,
+    return registerDedupedIncident<
+      ErrorIncidentResult,
+      CachedErrorIncident,
+      DbErrorIncident
+    >({
+      key: summary.fingerprint.cacheKey,
+      windowSeconds: dedupWindowSeconds,
+      dedupStore: this.dedupStore,
+      parseCache: (raw) => JSON.parse(raw) as CachedErrorIncident,
+      onCacheHit: (cached, now) =>
+        this.handleCachedIncident(summary, cached, now),
+      findInDb: (now) =>
+        this.findRecentMatchingIncidentInDb(summary, dedupWindowSeconds, now),
+      onDbHit: (existing, now) =>
+        this.handleDbHit(summary, existing, dedupWindowSeconds, now),
+      onCreate: (now) =>
+        this.handleCreate(summary, dedupWindowSeconds, now),
     });
-    const created = await this.createIncidentRecord(summary, 1, severity);
-
-    await this.dedupStore.setex(
-      key,
-      dedupWindowSeconds,
-      JSON.stringify({
-        id: created.id,
-        count: 1,
-        severity,
-        firstSeenAt: now.toISOString(),
-        priorIncidentCount,
-      }),
-    );
-
-    return {
-      isDuplicate: false,
-      id: created.id,
-      count: 1,
-      severity,
-    };
   }
 
   private async handleCachedIncident(
     summary: ErrorIncidentSummary,
     existing: CachedErrorIncident,
-    key: string,
-    dedupWindowSeconds: number,
     now: Date,
-  ): Promise<ErrorIncidentResult> {
+  ): Promise<DedupBranchOutcome<ErrorIncidentResult, CachedErrorIncident>> {
     const nextCount = existing.count + 1;
     const firstSeenAt = new Date(existing.firstSeenAt);
+    const priorIncidentCount = existing.priorIncidentCount ?? 0;
     const severity = this.resolveSeverity(summary, {
       count: nextCount,
       firstSeenAt,
       lastSeenAt: now,
-      priorIncidentCount: existing.priorIncidentCount ?? 0,
+      priorIncidentCount,
     });
     let recordId = existing.id;
 
@@ -162,24 +106,92 @@ export class ErrorIncidentService {
       }
     }
 
-    await this.dedupStore.setex(
-      key,
-      dedupWindowSeconds,
-      JSON.stringify({
+    return {
+      result: this.buildDuplicateResult(
+        recordId,
+        nextCount,
+        existing.severity,
+        severity,
+      ),
+      cacheValue: {
         id: recordId,
         count: nextCount,
         severity,
         firstSeenAt: existing.firstSeenAt,
-        priorIncidentCount: existing.priorIncidentCount ?? 0,
-      }),
-    );
+        priorIncidentCount,
+      },
+    };
+  }
 
-    return this.buildDuplicateResult(
-      recordId,
-      nextCount,
-      existing.severity,
-      severity,
+  private async handleDbHit(
+    summary: ErrorIncidentSummary,
+    existing: DbErrorIncident,
+    dedupWindowSeconds: number,
+    now: Date,
+  ): Promise<DedupBranchOutcome<ErrorIncidentResult, CachedErrorIncident>> {
+    const nextCount = existing.count + 1;
+    const priorIncidentCount = await this.countPriorIncidents(
+      summary,
+      new Date(now.getTime() - dedupWindowSeconds * 1000),
     );
+    const severity = this.resolveSeverity(summary, {
+      count: nextCount,
+      firstSeenAt: existing.firstSeenAt,
+      lastSeenAt: now,
+      priorIncidentCount,
+    });
+
+    await this.updateIncidentRecord(existing.id, summary, severity);
+
+    return {
+      result: this.buildDuplicateResult(
+        existing.id,
+        nextCount,
+        existing.severity,
+        severity,
+      ),
+      cacheValue: {
+        id: existing.id,
+        count: nextCount,
+        severity,
+        firstSeenAt: existing.firstSeenAt.toISOString(),
+        priorIncidentCount,
+      },
+    };
+  }
+
+  private async handleCreate(
+    summary: ErrorIncidentSummary,
+    dedupWindowSeconds: number,
+    now: Date,
+  ): Promise<DedupBranchOutcome<ErrorIncidentResult, CachedErrorIncident>> {
+    const priorIncidentCount = await this.countPriorIncidents(
+      summary,
+      new Date(now.getTime() - dedupWindowSeconds * 1000),
+    );
+    const severity = this.resolveSeverity(summary, {
+      count: 1,
+      firstSeenAt: now,
+      lastSeenAt: now,
+      priorIncidentCount,
+    });
+    const created = await this.createIncidentRecord(summary, 1, severity);
+
+    return {
+      result: {
+        isDuplicate: false,
+        id: created.id,
+        count: 1,
+        severity,
+      },
+      cacheValue: {
+        id: created.id,
+        count: 1,
+        severity,
+        firstSeenAt: now.toISOString(),
+        priorIncidentCount,
+      },
+    };
   }
 
   private buildDuplicateResult(
@@ -235,12 +247,7 @@ export class ErrorIncidentService {
     summary: ErrorIncidentSummary,
     dedupWindowSeconds: number,
     now: Date,
-  ): Promise<{
-    id: number;
-    count: number;
-    firstSeenAt: Date;
-    severity: IncidentSeverity;
-  } | null> {
+  ): Promise<DbErrorIncident | null> {
     if (!this.prisma.isEnabled) {
       return null;
     }
