@@ -1,8 +1,3 @@
-import {
-  sanitizeErrorData,
-  type SanitizedValue,
-  type SanitizerOptions,
-} from './sanitization/sanitizer';
 import { SlatrapContext } from './core/slatrap-context';
 import {
   type ConfigurableSlatrap,
@@ -15,8 +10,6 @@ import {
   toCoreEventEnvelope,
   toProviderErrorEvent,
 } from './core/slatrap-event-mappers';
-import { resolveEmitLatency } from './core/resolve-emit-latency';
-import { normalizeProviderErrorEmitPayload } from './core/provider-error-emit';
 import {
   type AxiosErrorInterceptorOptions,
   resolveEmitPayloadForHttpError,
@@ -58,19 +51,13 @@ export function configureSlatrapForProviderErrors(
 }
 
 export function createSlatrap(options: SlatrapOptions): SlatrapApi {
-  return {
-    sanitize<T = unknown>(value: T, sanitizeOptions?: SanitizerOptions) {
-      return sanitizeWithRedaction(
-        value,
-        sanitizeOptions?.redactionText ?? options.redactionText,
-      );
-    },
-    emit(payload: SanitizedValue) {
-      const normalizedPayload = normalizeProviderErrorEmitPayload(payload);
-      const payloadWithLatency = resolveEmitLatency(normalizedPayload);
-      return options.emit(payloadWithLatency);
-    },
-  };
+  const instance = new SlatrapContext({
+    // Isolated instances are SlatrapApi-only; these hooks are unused.
+    configureProviderErrors: () => undefined,
+    configureForCoreInspector: () => undefined,
+  });
+  instance.configure(options);
+  return instance;
 }
 
 export function createAxiosResponseErrorInterceptor(
@@ -117,12 +104,7 @@ export function configureSlatrapForCoreInspector(
   });
 }
 
-function sanitizeWithRedaction<T = unknown>(
-  value: T,
-  redactionText?: string,
-): SanitizedValue {
-  return sanitizeErrorData(value, { redactionText });
-}
+
 
 export {
   DEFAULT_REDACTION_TEXT,
