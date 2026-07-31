@@ -14,6 +14,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { Slatrap } from '@slatrap/slatrap';
 import { ProviderErrorInterceptor } from '@slatrap/slatrap/nestjs';
+import { type StripeErrorObject } from './stripe-simulator.definitions';
 
 /** Replay-attack window: reject webhooks with timestamps older than 5 minutes. */
 const STRIPE_TOLERANCE_SECONDS = 300;
@@ -38,17 +39,6 @@ type StripeWebhookEvent = {
       error?: StripeErrorObject;
     } & Record<string, unknown>;
   };
-};
-
-type StripeErrorObject = {
-  type?: string;
-  code?: string;
-  decline_code?: string;
-  message?: string;
-  param?: string;
-  doc_url?: string;
-  request_log_url?: string;
-  request_id?: string;
 };
 
 @Controller('stripe')
