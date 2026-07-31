@@ -7,6 +7,10 @@ import {
 } from '../../config/inspector-core.constants';
 import { type InspectorCoreModuleOptions } from '../../config/inspector-core.options';
 import { type DedupStore } from '../../infrastructure/redis/dedup-store';
+import {
+  registerDedupedIncident,
+  type DedupBranchOutcome,
+} from './register-deduped-incident';
 
 export type LatencyIncidentInput = {
   provider: string;
@@ -23,6 +27,21 @@ export type LatencyIncidentResult = {
   isDuplicate: boolean;
   id?: number;
   count?: number;
+};
+
+type CachedLatencyIncident = {
+  id: number;
+  count: number;
+  maxLatencyMs: number;
+  firstSeenAt: string;
+  lastSeenAt?: string;
+};
+
+type DbLatencyIncident = {
+  id: number;
+  count: number;
+  maxLatencyMs: number;
+  firstSeenAt: Date;
 };
 
 @Injectable()
@@ -45,100 +64,106 @@ export class LatencyIncidentService {
       this.options.latencyIncidentWindowSeconds ??
       this.options.errorDedupWindowSeconds ??
       300;
-    const key = this.buildRedisKey(input);
-    const cached = await this.dedupStore.get(key);
-    const now = new Date();
 
-    if (cached) {
-      const existing = JSON.parse(cached) as {
-        id: number;
-        count: number;
-        maxLatencyMs: number;
-        firstSeenAt: string;
-      };
-      const nextCount = existing.count + 1;
-      const maxLatencyMs = Math.max(existing.maxLatencyMs, input.latency);
-      let recordId = existing.id;
+    return registerDedupedIncident<
+      LatencyIncidentResult,
+      CachedLatencyIncident,
+      DbLatencyIncident
+    >({
+      key: this.buildRedisKey(input),
+      windowSeconds,
+      dedupStore: this.dedupStore,
+      parseCache: (raw) => JSON.parse(raw) as CachedLatencyIncident,
+      onCacheHit: (cached, now) => this.handleCachedIncident(input, cached, now),
+      findInDb: (now) =>
+        this.findRecentMatchingIncidentInDb(input, windowSeconds, now),
+      onDbHit: (existing, now) => this.handleDbHit(input, existing, now),
+      onCreate: (now) => this.handleCreate(input, now),
+    });
+  }
 
-      if (this.prisma.isEnabled) {
-        if (recordId === 0) {
-          const created = await this.createIncidentRecord(input, nextCount);
-          recordId = created.id;
-        } else {
-          await this.incrementIncident(recordId, maxLatencyMs);
-        }
+  private async handleCachedIncident(
+    input: LatencyIncidentInput,
+    existing: CachedLatencyIncident,
+    now: Date,
+  ): Promise<DedupBranchOutcome<LatencyIncidentResult, CachedLatencyIncident>> {
+    const nextCount = existing.count + 1;
+    const maxLatencyMs = Math.max(existing.maxLatencyMs, input.latency);
+    let recordId = existing.id;
+
+    if (this.prisma.isEnabled) {
+      if (recordId === 0) {
+        const created = await this.createIncidentRecord(input, nextCount);
+        recordId = created.id;
+      } else {
+        await this.incrementIncident(recordId, maxLatencyMs);
       }
+    }
 
-      await this.dedupStore.setex(
-        key,
-        windowSeconds,
-        JSON.stringify({
-          id: recordId,
-          count: nextCount,
-          maxLatencyMs,
-          firstSeenAt: existing.firstSeenAt,
-          lastSeenAt: now.toISOString(),
-        }),
-      );
-
-      return {
+    return {
+      result: {
         isIncident: true,
         isDuplicate: true,
         id: recordId,
         count: nextCount,
-      };
-    }
+      },
+      cacheValue: {
+        id: recordId,
+        count: nextCount,
+        maxLatencyMs,
+        firstSeenAt: existing.firstSeenAt,
+        lastSeenAt: now.toISOString(),
+      },
+    };
+  }
 
-    const existingInDb = await this.findRecentMatchingIncidentInDb(
-      input,
-      windowSeconds,
-      now,
-    );
+  private async handleDbHit(
+    input: LatencyIncidentInput,
+    existing: DbLatencyIncident,
+    now: Date,
+  ): Promise<DedupBranchOutcome<LatencyIncidentResult, CachedLatencyIncident>> {
+    const nextCount = existing.count + 1;
+    const maxLatencyMs = Math.max(existing.maxLatencyMs, input.latency);
 
-    if (existingInDb) {
-      const nextCount = existingInDb.count + 1;
-      const maxLatencyMs = Math.max(existingInDb.maxLatencyMs, input.latency);
+    await this.incrementIncident(existing.id, maxLatencyMs);
 
-      await this.incrementIncident(existingInDb.id, maxLatencyMs);
-      await this.dedupStore.setex(
-        key,
-        windowSeconds,
-        JSON.stringify({
-          id: existingInDb.id,
-          count: nextCount,
-          maxLatencyMs,
-          firstSeenAt: existingInDb.firstSeenAt.toISOString(),
-          lastSeenAt: now.toISOString(),
-        }),
-      );
-
-      return {
+    return {
+      result: {
         isIncident: true,
         isDuplicate: true,
-        id: existingInDb.id,
+        id: existing.id,
         count: nextCount,
-      };
-    }
+      },
+      cacheValue: {
+        id: existing.id,
+        count: nextCount,
+        maxLatencyMs,
+        firstSeenAt: existing.firstSeenAt.toISOString(),
+        lastSeenAt: now.toISOString(),
+      },
+    };
+  }
 
+  private async handleCreate(
+    input: LatencyIncidentInput,
+    now: Date,
+  ): Promise<DedupBranchOutcome<LatencyIncidentResult, CachedLatencyIncident>> {
     const created = await this.createIncidentRecord(input, 1);
 
-    await this.dedupStore.setex(
-      key,
-      windowSeconds,
-      JSON.stringify({
+    return {
+      result: {
+        isIncident: true,
+        isDuplicate: false,
+        id: created.id,
+        count: 1,
+      },
+      cacheValue: {
         id: created.id,
         count: 1,
         maxLatencyMs: input.latency,
         firstSeenAt: now.toISOString(),
         lastSeenAt: now.toISOString(),
-      }),
-    );
-
-    return {
-      isIncident: true,
-      isDuplicate: false,
-      id: created.id,
-      count: 1,
+      },
     };
   }
 
@@ -150,12 +175,7 @@ export class LatencyIncidentService {
     input: LatencyIncidentInput,
     windowSeconds: number,
     now: Date,
-  ): Promise<{
-    id: number;
-    count: number;
-    maxLatencyMs: number;
-    firstSeenAt: Date;
-  } | null> {
+  ): Promise<DbLatencyIncident | null> {
     if (!this.prisma.isEnabled) {
       return null;
     }
