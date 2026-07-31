@@ -3,7 +3,6 @@ import { normalizeProviderErrorEmitPayload } from './provider-error-emit';
 import {
   type ConfigurableSlatrap,
   type ConfigureSlatrapForCoreInspectorOptions,
-  type ConfigureSlatrapForProviderErrorsOptions,
   type SlatrapEmitter,
   type SlatrapOptions,
 } from './slatrap.types';
@@ -14,9 +13,6 @@ import {
 } from '../sanitization/sanitizer';
 
 type SlatrapContextHandlers = {
-  configureProviderErrors: (
-    options: ConfigureSlatrapForProviderErrorsOptions,
-  ) => void;
   configureForCoreInspector: (
     options: ConfigureSlatrapForCoreInspectorOptions,
   ) => void;
@@ -26,17 +22,15 @@ export class SlatrapContext implements ConfigurableSlatrap {
   private configuredEmitter: SlatrapEmitter = () => undefined;
   private configuredRedactionText: string | undefined;
 
-  constructor(private readonly handlers: SlatrapContextHandlers) {}
+  constructor(
+    private readonly handlers: SlatrapContextHandlers = {
+      configureForCoreInspector: () => undefined,
+    },
+  ) {}
 
   configure(options: SlatrapOptions): void {
     this.configuredEmitter = options.emit;
     this.configuredRedactionText = options.redactionText;
-  }
-
-  configureProviderErrors(
-    options: ConfigureSlatrapForProviderErrorsOptions,
-  ): void {
-    this.handlers.configureProviderErrors(options);
   }
 
   configureForCoreInspector(

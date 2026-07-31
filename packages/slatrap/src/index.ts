@@ -2,7 +2,6 @@ import { SlatrapContext } from './core/slatrap-context';
 import {
   type ConfigurableSlatrap,
   type ConfigureSlatrapForCoreInspectorOptions,
-  type ConfigureSlatrapForProviderErrorsOptions,
   type Slatrap as SlatrapApi,
   type SlatrapOptions,
 } from './core/slatrap.types';
@@ -18,7 +17,6 @@ import {
 export type {
   ConfigurableSlatrap,
   ConfigureSlatrapForCoreInspectorOptions,
-  ConfigureSlatrapForProviderErrorsOptions,
   SlatrapCoreEventEnvelope,
   SlatrapEmitter,
   SlatrapOptions,
@@ -28,8 +26,6 @@ export type {
 export type Slatrap = SlatrapApi;
 
 export const Slatrap: ConfigurableSlatrap = new SlatrapContext({
-  configureProviderErrors: (options) =>
-    configureSlatrapForProviderErrors(options),
   configureForCoreInspector: (options) =>
     configureSlatrapForCoreInspector(options),
 });
@@ -38,24 +34,8 @@ export function configureSlatrap(options: SlatrapOptions): void {
   Slatrap.configure(options);
 }
 
-export function configureSlatrapForProviderErrors(
-  options: ConfigureSlatrapForProviderErrorsOptions,
-): void {
-  configureSlatrap({
-    redactionText: options.redactionText,
-    emit: (payload) =>
-      options.emitProviderError(
-        toProviderErrorEvent(payload, options.defaultProvider),
-      ),
-  });
-}
-
 export function createSlatrap(options: SlatrapOptions): SlatrapApi {
-  const instance = new SlatrapContext({
-    // Isolated instances are SlatrapApi-only; these hooks are unused.
-    configureProviderErrors: () => undefined,
-    configureForCoreInspector: () => undefined,
-  });
+  const instance = new SlatrapContext();
   instance.configure(options);
   return instance;
 }
@@ -103,8 +83,6 @@ export function configureSlatrapForCoreInspector(
     },
   });
 }
-
-
 
 export {
   DEFAULT_REDACTION_TEXT,
