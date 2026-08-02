@@ -1,12 +1,49 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Slatrap } from '@slatrap/slatrap';
+import { PLAID_ITEM_CREATED } from '@slatrap/slatrap-engine';
 import { PlaidSimulationErrorService } from './simulation-error.service';
 import { type PlaidSimulationOptions } from './plaid-simulation-options';
+
+export type SimulatedPlaidItem = {
+  itemId: string;
+  institutionId: string;
+  institutionName: string;
+};
 
 @Injectable()
 export class PlaidSimulatorService {
   constructor(
     private readonly simulationErrorService: PlaidSimulationErrorService,
+    private readonly configService: ConfigService,
   ) {}
+
+  /**
+   * Simulates a successful Plaid Link / item create and emits `plaid.item.created`
+   * so the engine listener can persist item metadata.
+   */
+  createItem(): SimulatedPlaidItem {
+    const item: SimulatedPlaidItem = {
+      itemId:
+        this.configService.get<string>('SIMULATION_ITEM_ID') ??
+        `item_sim_${Date.now()}`,
+      institutionId:
+        this.configService.get<string>('SIMULATION_INSTITUTION_ID') ??
+        'ins_109508',
+      institutionName:
+        this.configService.get<string>('SIMULATION_INSTITUTION_NAME') ??
+        'First Platypus Bank',
+    };
+
+    void Slatrap.emit(
+      Slatrap.sanitize({
+        eventName: PLAID_ITEM_CREATED,
+        payload: item,
+      }),
+    );
+
+    return item;
+  }
 
   triggerInstitutionDownError(
     options?: PlaidSimulationOptions,
