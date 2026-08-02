@@ -21,6 +21,12 @@ export class PlaidSimulationController {
     private readonly configService: ConfigService,
   ) {}
 
+  @Post('item-created')
+  @HttpCode(200)
+  simulateItemCreated() {
+    return this.plaidSimulator.createItem();
+  }
+
   @Post('no-accounts')
   @HttpCode(200)
   simulateNoAccounts(@Req() req: Request) {

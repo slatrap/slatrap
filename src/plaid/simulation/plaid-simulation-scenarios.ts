@@ -11,6 +11,15 @@ export type PlaidSimulationScenario = {
 export function buildPlaidSimulationScenarios(): PlaidSimulationScenario[] {
   return [
     {
+      name: 'Item Created Scenario',
+      provider: 'plaid',
+      expectedError: 'NONE',
+      endpoint: 'item-created',
+      frequency: 0.05,
+      requestPath: '/plaid/item-created',
+      buildRequestBody: () => Promise.resolve(undefined),
+    },
+    {
       name: 'Bank Down Scenario',
       provider: 'plaid',
       expectedError: 'INSTITUTION_DOWN',
