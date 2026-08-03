@@ -1,14 +1,20 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { emitProviderLatency, Slatrap, type StructuredValue } from '@slatrap/slatrap';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
 import { type PlaidSimulationOptions } from './plaid-simulation-options';
+import {
+  PLAID_SIMULATION_TEST_CASES,
+  type PlaidSimulationTestCases,
+} from './plaid-simulation-test-cases';
 
 @Injectable()
 export class PlaidSimulationErrorService {
-  constructor(private readonly configService: ConfigService) { }
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(PLAID_SIMULATION_TEST_CASES)
+    private readonly testCases: PlaidSimulationTestCases,
+  ) {}
 
   async triggerSlowResponse(
     delayMs: number,
@@ -68,34 +74,14 @@ export class PlaidSimulationErrorService {
   }
 
   private readTestCase(key: string): unknown {
-    const file = this.locateTestCasesFile();
-    const raw = fs.readFileSync(file, 'utf8');
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-
-    const payload = parsed[key];
+    const payload = this.testCases[key];
     if (!payload) {
-      throw new Error(`Missing test case '${key}' in ${file}`);
+      throw new Error(
+        `Missing test case '${key}' in loaded Plaid simulation fixtures`,
+      );
     }
 
     return payload;
-  }
-
-  private locateTestCasesFile(): string {
-    const candidates = [
-      path.resolve(process.cwd(), '..', 'test-cases.json'),
-      path.resolve(process.cwd(), 'test-cases.json'),
-      path.resolve(__dirname, '..', '..', '..', 'test-cases.json'),
-    ];
-
-    for (const candidate of candidates) {
-      if (fs.existsSync(candidate)) {
-        return candidate;
-      }
-    }
-
-    throw new Error(
-      `test-cases.json not found. Searched: ${candidates.join(', ')}`,
-    );
   }
 
   private inferHttpStatus(payload: unknown): number {
