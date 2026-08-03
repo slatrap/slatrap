@@ -102,7 +102,6 @@ export type {
 
 export {
   buildHttpTimeoutEmitPayload,
-  buildHttpTimeoutMessage,
   buildHttpTimeoutTransportError,
   DEFAULT_HTTP_TIMEOUT_MS,
   fetchWithTimeout,
@@ -116,7 +115,6 @@ export {
 export type { ProviderLatencyEmitInput } from './core/provider-latency-emit';
 
 export {
-  buildProviderLatencyEmitPayload,
   PROVIDER_LATENCY_EVENT_NAME,
 } from './core/provider-latency-emit';
 
@@ -141,4 +139,3 @@ export function createAxiosLatencyHooks(options: AxiosLatencyHooksOptions) {
   return createAxiosLatencyHooksFor(Slatrap, options);
 }
 
-export { resolveAxiosResponseStatus } from './http/axios-latency';
