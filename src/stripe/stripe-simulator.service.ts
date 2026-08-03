@@ -1,4 +1,9 @@
-import { HttpException, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Slatrap } from '@slatrap/slatrap';
 import { StripeSimulatorApiClient } from './stripe-simulator-api.client';
@@ -8,7 +13,7 @@ import {
 } from './stripe-http.utils';
 import { StripeSimulatorErrorMapper } from './stripe-simulator-error.mapper';
 import {
-  STRIPE_SIMULATIONS,
+  getStripeSimulation,
   type StripeSimulationSpec,
 } from './stripe-simulator.definitions';
 
@@ -20,44 +25,33 @@ export class StripeSimulatorService {
     private readonly configService: ConfigService,
     private readonly stripeSimulatorApiClient: StripeSimulatorApiClient,
     private readonly stripeSimulatorErrorMapper: StripeSimulatorErrorMapper,
-  ) { }
+  ) {}
 
-  async triggerInsufficientFundsError(): Promise<never> {
-    return this.triggerDeclinedPaymentIntent(
-      STRIPE_SIMULATIONS.insufficientFunds,
-    );
+  /**
+   * Dispatches a registered Stripe simulation by route segment
+   * (e.g. `insufficient-funds`, `timeout`).
+   */
+  run(route: string): Promise<never> {
+    const simulation = getStripeSimulation(route);
+    if (!simulation) {
+      throw new NotFoundException(`Unknown Stripe simulation scenario: ${route}`);
+    }
+
+    if (simulation.kind === 'timeout') {
+      return this.triggerTimeout(simulation);
+    }
+
+    return this.triggerDeclinedPaymentIntent(simulation);
   }
 
-  async triggerAccountClosedError(): Promise<never> {
-    return this.triggerDeclinedPaymentIntent(STRIPE_SIMULATIONS.accountClosed);
-  }
-
-  async triggerCustomerNotAuthorizedError(): Promise<never> {
-    return this.triggerDeclinedPaymentIntent(
-      STRIPE_SIMULATIONS.customerNotAuthorized,
-    );
-  }
-
-  async triggerInvalidAccountRoutingNumberError(): Promise<never> {
-    return this.triggerDeclinedPaymentIntent(
-      STRIPE_SIMULATIONS.invalidAccountRoutingNumber,
-    );
-  }
-
-  async triggerStolenCardError(): Promise<never> {
-    return this.triggerDeclinedPaymentIntent(STRIPE_SIMULATIONS.stolenCard);
-  }
-
-  async triggerFraudulentError(): Promise<never> {
-    return this.triggerDeclinedPaymentIntent(STRIPE_SIMULATIONS.fraudulent);
-  }
-
-  async triggerTimeoutError(): Promise<never> {
+  private async triggerTimeout(
+    simulation: StripeSimulationSpec,
+  ): Promise<never> {
     const start = Date.now();
     const timeoutMs = readStripeHttpTimeoutMs(this.configService);
 
     return this.handleSimulationFailure(
-      STRIPE_SIMULATIONS.timeout,
+      simulation,
       toStripeHttpTimeoutError(timeoutMs),
       start,
     );

@@ -9,7 +9,12 @@ export type StripeErrorObject = {
   request_id?: string;
 };
 
+export type StripeSimulationKind = 'decline' | 'timeout';
+
 export type StripeSimulationSpec = {
+  /** HTTP path segment under `/stripe/` */
+  route: string;
+  kind: StripeSimulationKind;
   endpoint: string;
   successMessage: string;
   buildBody: (externalRefId?: string) => URLSearchParams;
@@ -58,8 +63,14 @@ function buildInvalidBankAccountBody() {
   };
 }
 
+/**
+ * Single source of truth for Stripe simulation routes and request builders.
+ * Add a scenario here — controller/service dispatch from this registry.
+ */
 export const STRIPE_SIMULATIONS = {
-  insufficientFunds: {
+  'insufficient-funds': {
+    route: 'insufficient-funds',
+    kind: 'decline',
     endpoint: 'stripe/insufficient-funds',
     successMessage: 'Stripe NSF simulation failed as expected',
     buildBody: buildCardPaymentIntentBody(
@@ -67,7 +78,9 @@ export const STRIPE_SIMULATIONS = {
       'card',
     ),
   },
-  accountClosed: {
+  'account-closed': {
+    route: 'account-closed',
+    kind: 'decline',
     endpoint: 'stripe/account-closed',
     successMessage: 'Stripe account-closed simulation failed as expected',
     buildBody: buildCardPaymentIntentBody(
@@ -75,7 +88,9 @@ export const STRIPE_SIMULATIONS = {
       'us_bank_account',
     ),
   },
-  customerNotAuthorized: {
+  'customer-not-authorized': {
+    route: 'customer-not-authorized',
+    kind: 'decline',
     endpoint: 'stripe/customer-not-authorized',
     successMessage:
       'Stripe customer-not-authorized simulation failed as expected',
@@ -84,13 +99,17 @@ export const STRIPE_SIMULATIONS = {
       'us_bank_account',
     ),
   },
-  invalidAccountRoutingNumber: {
+  'invalid-account-routing-number': {
+    route: 'invalid-account-routing-number',
+    kind: 'decline',
     endpoint: 'stripe/invalid-account-routing-number',
     successMessage:
       'Stripe invalid-account-routing-number simulation failed as expected',
     buildBody: buildInvalidBankAccountBody(),
   },
-  stolenCard: {
+  'stolen-card': {
+    route: 'stolen-card',
+    kind: 'decline',
     endpoint: 'stripe/stolen-card',
     successMessage: 'Stripe stolen-card simulation failed as expected',
     buildBody: buildCardPaymentIntentBody(
@@ -99,13 +118,25 @@ export const STRIPE_SIMULATIONS = {
     ),
   },
   fraudulent: {
+    route: 'fraudulent',
+    kind: 'decline',
     endpoint: 'stripe/fraudulent',
     successMessage: 'Stripe fraudulent simulation failed as expected',
     buildBody: buildCardPaymentIntentBody('pm_card_radarBlock', 'card'),
   },
   timeout: {
+    route: 'timeout',
+    kind: 'timeout',
     endpoint: 'stripe/timeout',
     successMessage: 'Stripe timeout simulation failed as expected',
     buildBody: () => new URLSearchParams(),
   },
-} satisfies Record<string, StripeSimulationSpec>;
+} as const satisfies Record<string, StripeSimulationSpec>;
+
+export type StripeSimulationRoute = keyof typeof STRIPE_SIMULATIONS;
+
+export function getStripeSimulation(
+  route: string,
+): StripeSimulationSpec | undefined {
+  return STRIPE_SIMULATIONS[route as StripeSimulationRoute];
+}
