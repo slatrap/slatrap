@@ -3,6 +3,7 @@ import {
   type SlatrapProviderErrorEvent,
 } from './slatrap.types';
 import { type SanitizedValue } from '../sanitization/sanitizer';
+import { toRecord } from './is-record';
 
 export function toProviderErrorEvent(
   payload: SanitizedValue,
@@ -38,14 +39,6 @@ export function toCoreEventEnvelope(
     eventName,
     payload: envelope?.payload ?? {},
   };
-}
-
-function toRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value === 'object' && value !== null) {
-    return value as Record<string, unknown>;
-  }
-
-  return null;
 }
 
 function readString(value: unknown): string | undefined {

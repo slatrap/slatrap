@@ -2,6 +2,7 @@ import {
   type SanitizedValue,
   type StructuredValue,
 } from '../sanitization/sanitizer';
+import { isRecord } from './is-record';
 
 export function resolveEmitLatency(payload: SanitizedValue): SanitizedValue {
   if (!isRecord(payload)) {
@@ -12,11 +13,15 @@ export function resolveEmitLatency(payload: SanitizedValue): SanitizedValue {
   if (typeof eventName === 'string' && isRecord(payload.payload)) {
     return {
       ...payload,
-      payload: resolveRecordLatency(payload.payload),
+      payload: resolveRecordLatency(
+        payload.payload as Record<string, StructuredValue>,
+      ),
     } as unknown as SanitizedValue;
   }
 
-  return resolveRecordLatency(payload) as unknown as SanitizedValue;
+  return resolveRecordLatency(
+    payload as Record<string, StructuredValue>,
+  ) as unknown as SanitizedValue;
 }
 
 function resolveRecordLatency(
@@ -37,10 +42,4 @@ function resolveRecordLatency(
     ...rest,
     latency: Date.now() - startedAt,
   };
-}
-
-function isRecord(
-  value: unknown,
-): value is Record<string, StructuredValue> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

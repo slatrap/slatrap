@@ -1,4 +1,4 @@
-import { detectProvider } from '@slatrap/slatrap';
+import { detectProvider, isRecord } from '@slatrap/slatrap';
 import { type FintechErrorContext } from './provider-error.types';
 
 type ErrorPayloadRecord = Record<string, unknown>;
@@ -85,8 +85,4 @@ function readString(
   }
 
   return undefined;
-}
-
-function isRecord(value: unknown): value is ErrorPayloadRecord {
-  return typeof value === 'object' && value !== null;
 }
