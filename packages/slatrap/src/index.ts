@@ -123,11 +123,10 @@ export type { ProviderErrorEmitInput } from './core/provider-error-emit';
 export { detectProvider, type DetectedProvider } from './core/detect-provider';
 
 export type { AxiosLatencyHooksOptions } from './http/axios-latency';
-
+import type { AxiosLatencyHooksOptions } from './http/axios-latency';
 import {
   createAxiosLatencyHooks as createAxiosLatencyHooksFor,
   emitProviderLatency as emitProviderLatencyFor,
-  type AxiosLatencyHooksOptions,
 } from './http/axios-latency';
 import { type ProviderLatencyEmitInput } from './core/provider-latency-emit';
 
