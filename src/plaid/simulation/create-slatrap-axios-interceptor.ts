@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   createAxiosLatencyHooks,
   createAxiosResponseErrorInterceptor,
+  isRecord,
   type StructuredValue,
 } from '@slatrap/slatrap';
 import { withPlaidSimulationMetadata } from './plaid-simulation-metadata.util';
@@ -56,8 +57,4 @@ function unwrapPlaidPayload(
   }
 
   return responseData as Record<string, StructuredValue>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }

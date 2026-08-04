@@ -122,6 +122,8 @@ export type { ProviderErrorEmitInput } from './core/provider-error-emit';
 
 export { detectProvider, type DetectedProvider } from './core/detect-provider';
 
+export { isRecord, toRecord } from './core/is-record';
+
 export type { AxiosLatencyHooksOptions } from './http/axios-latency';
 import type { AxiosLatencyHooksOptions } from './http/axios-latency';
 import {

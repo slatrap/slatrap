@@ -1,3 +1,5 @@
+import { isRecord } from './is-record';
+
 export type DetectedProvider = 'plaid' | 'stripe';
 
 /**
@@ -18,8 +20,4 @@ export function detectProvider(payload: unknown): DetectedProvider | undefined {
   }
 
   return undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }

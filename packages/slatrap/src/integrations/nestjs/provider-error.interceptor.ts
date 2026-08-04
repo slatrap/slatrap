@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable, catchError, throwError } from 'rxjs';
 import { detectProvider } from '../../core/detect-provider';
+import { isRecord } from '../../core/is-record';
 import { type StructuredValue } from '../../sanitization/sanitizer';
 import { Slatrap } from '../../index';
 
@@ -146,10 +147,10 @@ export class ProviderErrorInterceptor implements NestInterceptor {
   }
 
   private shouldEmit(payload: unknown): boolean {
-    if (!this.isRecord(payload)) return false;
+    if (!isRecord(payload)) return false;
 
     // Avoid double-emitting when provider errors are already wrapped by handlers.
-    if (this.isRecord(payload['plaid']) || this.isRecord(payload['stripe'])) {
+    if (isRecord(payload['plaid']) || isRecord(payload['stripe'])) {
       return false;
     }
 
@@ -157,7 +158,7 @@ export class ProviderErrorInterceptor implements NestInterceptor {
   }
 
   private readEmitStartedAt(payload: unknown, fallbackStartedAt: number): number {
-    if (!this.isRecord(payload)) return fallbackStartedAt;
+    if (!isRecord(payload)) return fallbackStartedAt;
 
     const candidate = payload.startedAt;
     if (typeof candidate === 'number' && Number.isFinite(candidate)) {
@@ -168,15 +169,11 @@ export class ProviderErrorInterceptor implements NestInterceptor {
   }
 
   private omitStartedAt(payload: unknown): StructuredValue {
-    if (!this.isRecord(payload)) {
+    if (!isRecord(payload)) {
       return payload as StructuredValue;
     }
 
     const { startedAt: _startedAt, ...rest } = payload;
     return rest as StructuredValue;
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
   }
 }
