@@ -1,22 +1,14 @@
 import { Injectable } from '@nestjs/common';
+import { type SlatrapProviderLatencyEvent } from '@slatrap/slatrap';
 import { PrismaService } from '../../database/prisma.service';
 import { toPrismaJsonObject } from '../../database/prisma-json';
-
-export type LatencyObservationInput = {
-  provider: string;
-  endpoint?: string;
-  latency: number;
-  success: boolean;
-  statusCode?: number | null;
-  metadata?: Record<string, unknown>;
-};
 
 @Injectable()
 export class LatencyTrackingService {
   constructor(private readonly prisma: PrismaService) {}
 
   async recordObservation(
-    input: LatencyObservationInput,
+    input: SlatrapProviderLatencyEvent,
   ): Promise<{ id: number } | null> {
     if (!this.prisma.isEnabled) {
       return null;

@@ -23,6 +23,20 @@ export type SlatrapProviderErrorEvent = {
   latency?: number;
 };
 
+/**
+ * Canonical provider-latency event on the wire after `startedAt` → `latency`
+ * resolution. Distinct from emit-stage `ProviderLatencyEmitInput`
+ * (`startedAt`, required `endpoint`).
+ */
+export type SlatrapProviderLatencyEvent = {
+  provider: string;
+  endpoint?: string;
+  latency: number;
+  success: boolean;
+  statusCode?: number | null;
+  metadata?: Record<string, unknown>;
+};
+
 export type SlatrapCoreEventEnvelope = {
   eventName: string;
   payload: unknown;

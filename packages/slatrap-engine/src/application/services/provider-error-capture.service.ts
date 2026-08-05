@@ -30,11 +30,12 @@ export class ProviderErrorCaptureService {
 
   async captureProviderError(params: {
     endpoint?: string;
-    statusCode?: number;
+    statusCode?: number | null;
     providerPayload?: unknown;
     latency?: number;
     provider?: string;
   }): Promise<CapturedProviderError | null> {
+    const statusCode = params.statusCode ?? undefined;
     const errorContext: FintechErrorContext | null = params.providerPayload
       ? normalizeFintechPayload(params.providerPayload, params.provider)
       : null;
@@ -57,7 +58,7 @@ export class ProviderErrorCaptureService {
     } = {
       providerPayload: errorContext.payload,
       endpoint: params.endpoint,
-      statusCode: params.statusCode,
+      statusCode,
       provider: errorContext.provider,
       latency: params.latency,
     };
@@ -82,7 +83,7 @@ export class ProviderErrorCaptureService {
       errorMessage: errorContext.errorMessage,
       requestId: errorContext.requestId,
       endpoint: params.endpoint,
-      statusCode: params.statusCode,
+      statusCode,
       metadata,
     };
   }
