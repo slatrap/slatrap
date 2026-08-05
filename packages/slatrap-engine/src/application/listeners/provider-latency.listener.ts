@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { PROVIDER_LATENCY_EVENT } from '../../domain/events/events.constants';
-import { type ProviderLatencyInspectionEvent } from '../../domain/events/events.types';
+import { type SlatrapProviderLatencyEvent } from '@slatrap/slatrap';
 import { EventBusService } from '../../infrastructure/eventing/event-bus.service';
 import { enqueueSlackAlert } from '../../infrastructure/notifications/slack-alert-enqueue';
 import { SlackService } from '../../infrastructure/notifications/slack.service';
@@ -21,7 +21,7 @@ export class ProviderLatencyListener implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ProviderLatencyListener.name);
 
   private readonly listener = (payload: unknown) => {
-    const event = payload as ProviderLatencyInspectionEvent;
+    const event = payload as SlatrapProviderLatencyEvent;
     void this.handleProviderLatency(event).catch((error) => {
       this.logger.error(
         `Failed to handle provider latency event: ${String(error)}`,
@@ -48,7 +48,7 @@ export class ProviderLatencyListener implements OnModuleInit, OnModuleDestroy {
     this.inspector.off(PROVIDER_LATENCY_EVENT, this.listener);
   }
 
-  private async handleProviderLatency(event: ProviderLatencyInspectionEvent) {
+  private async handleProviderLatency(event: SlatrapProviderLatencyEvent) {
     const thresholdMs = this.resolveThresholdMs(event.provider);
     if (thresholdMs === undefined) {
       return;

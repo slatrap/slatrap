@@ -21,6 +21,7 @@ export type {
   SlatrapEmitter,
   SlatrapOptions,
   SlatrapProviderErrorEvent,
+  SlatrapProviderLatencyEvent,
 } from './core/slatrap.types';
 
 export type Slatrap = SlatrapApi;

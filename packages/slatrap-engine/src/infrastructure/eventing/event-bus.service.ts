@@ -4,11 +4,9 @@ import { EventEmitter } from 'node:events';
 export {
   PLAID_ITEM_CREATED,
   PROVIDER_ERROR_EVENT,
+  PROVIDER_LATENCY_EVENT,
 } from '../../domain/events/events.constants';
-export {
-  type ProviderErrorInspectionEvent,
-  type PlaidItemCreatedEvent,
-} from '../../domain/events/events.types';
+export { type PlaidItemCreatedEvent } from '../../domain/events/events.types';
 
 @Injectable()
 export class EventBusService {

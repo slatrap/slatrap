@@ -3,6 +3,11 @@ import { type StructuredValue } from '../sanitization/sanitizer';
 /** Must match `@slatrap/slatrap-engine` `PROVIDER_LATENCY_EVENT`. */
 export const PROVIDER_LATENCY_EVENT_NAME = 'provider.latency';
 
+/**
+ * Emit-stage input for latency telemetry (`startedAt` not yet resolved).
+ * After emit pipeline resolution, the wire payload matches
+ * `SlatrapProviderLatencyEvent`.
+ */
 export type ProviderLatencyEmitInput = {
   provider: string;
   endpoint: string;

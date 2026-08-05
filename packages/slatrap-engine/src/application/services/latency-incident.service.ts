@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { type SlatrapProviderLatencyEvent } from '@slatrap/slatrap';
 import { PrismaService } from '../../database/prisma.service';
 import { toPrismaJsonObject } from '../../database/prisma-json';
 import {
@@ -12,14 +13,9 @@ import {
   type DedupBranchOutcome,
 } from './register-deduped-incident';
 
-export type LatencyIncidentInput = {
-  provider: string;
-  endpoint?: string;
-  latency: number;
+/** Incident check input — wire latency event plus resolved threshold. */
+export type LatencyIncidentInput = SlatrapProviderLatencyEvent & {
   thresholdMs: number;
-  success: boolean;
-  statusCode?: number | null;
-  metadata?: Record<string, unknown>;
 };
 
 export type LatencyIncidentResult = {

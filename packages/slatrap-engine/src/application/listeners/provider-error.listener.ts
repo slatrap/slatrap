@@ -9,7 +9,7 @@ import { ModuleRef } from '@nestjs/core';
 import { ProviderErrorCaptureService } from '../services/provider-error-capture.service';
 import { EventBusService } from '../../infrastructure/eventing/event-bus.service';
 import { PROVIDER_ERROR_EVENT } from '../../domain/events/events.constants';
-import { type ProviderErrorInspectionEvent } from '../../domain/events/events.types';
+import { type SlatrapProviderErrorEvent } from '@slatrap/slatrap';
 import { ErrorIncidentService } from '../services/error-incident.service';
 import { SlackService } from '../../infrastructure/notifications/slack.service';
 import { enqueueSlackAlert } from '../../infrastructure/notifications/slack-alert-enqueue';
@@ -24,7 +24,7 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ProviderErrorListener.name);
 
   private readonly listener = (payload: unknown) => {
-    const event = payload as ProviderErrorInspectionEvent;
+    const event = payload as SlatrapProviderErrorEvent;
     void this.handleProviderError(event).catch((error) => {
       this.logger.error(
         `Failed to handle provider error event: ${String(error)}`,
@@ -51,7 +51,7 @@ export class ProviderErrorListener implements OnModuleInit, OnModuleDestroy {
     this.inspector.off(PROVIDER_ERROR_EVENT, this.listener);
   }
 
-  private async handleProviderError(event: ProviderErrorInspectionEvent) {
+  private async handleProviderError(event: SlatrapProviderErrorEvent) {
     const capturedError =
       await this.fintechErrorCaptureService.captureProviderError({
         provider: event.provider,
