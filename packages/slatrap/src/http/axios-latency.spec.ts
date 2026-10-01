@@ -1,7 +1,7 @@
 import axios from 'axios';
 import {
-  createAxiosLatencyHooks,
-  emitProviderLatency,
+  createAxiosLatencyHooksFor,
+  emitProviderLatencyFor,
   resolveAxiosResponseStatus,
 } from './axios-latency';
 import { PROVIDER_LATENCY_EVENT_NAME } from '../core/provider-latency-emit';
@@ -20,13 +20,13 @@ describe('axios-latency', () => {
     });
   });
 
-  describe('emitProviderLatency', () => {
+  describe('emitProviderLatencyFor', () => {
     it('emits a provider latency envelope', () => {
       const emit = jest.fn();
       const slatrap = { emit } as never;
       const startedAt = Date.now() - 50;
 
-      emitProviderLatency(slatrap, {
+      emitProviderLatencyFor(slatrap, {
         provider: 'plaid',
         endpoint: '/accounts/get',
         startedAt,
@@ -47,11 +47,11 @@ describe('axios-latency', () => {
     });
   });
 
-  describe('createAxiosLatencyHooks', () => {
+  describe('createAxiosLatencyHooksFor', () => {
     it('emits latency on success', async () => {
       const emit = jest.fn();
       const slatrap = { emit } as never;
-      const hooks = createAxiosLatencyHooks(slatrap, {
+      const hooks = createAxiosLatencyHooksFor(slatrap, {
         provider: 'plaid',
         endpoint: '/item/get',
         startedAt: Date.now(),
@@ -70,7 +70,7 @@ describe('axios-latency', () => {
       const emit = jest.fn();
       const slatrap = { emit } as never;
       const onError = jest.fn().mockRejectedValue(new Error('handled'));
-      const hooks = createAxiosLatencyHooks(slatrap, {
+      const hooks = createAxiosLatencyHooksFor(slatrap, {
         provider: 'plaid',
         endpoint: '/item/get',
         startedAt: Date.now(),

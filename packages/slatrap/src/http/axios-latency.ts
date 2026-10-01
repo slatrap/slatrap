@@ -13,7 +13,7 @@ export type AxiosLatencyHooksOptions = {
   onError?: (error: unknown) => Promise<never>;
 };
 
-export function emitProviderLatency(
+export function emitProviderLatencyFor(
   slatrap: SlatrapApi,
   input: ProviderLatencyEmitInput,
 ): void {
@@ -27,12 +27,12 @@ export function resolveAxiosResponseStatus(error: unknown): number | null {
   return error.response?.status ?? null;
 }
 
-export function createAxiosLatencyHooks(
+export function createAxiosLatencyHooksFor(
   slatrap: SlatrapApi,
   options: AxiosLatencyHooksOptions,
 ) {
   const emit = (success: boolean, statusCode: number | null) => {
-    emitProviderLatency(slatrap, {
+    emitProviderLatencyFor(slatrap, {
       provider: options.provider,
       endpoint: options.endpoint,
       startedAt: options.startedAt,
