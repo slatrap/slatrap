@@ -23,11 +23,11 @@ type HttpRequestLike = {
  * ```typescript
  * // In app.module.ts
  * import { APP_INTERCEPTOR } from '@nestjs/core';
- * import { SlatrapProviderErrorInterceptor } from '@slatrap/slatrap';
+ * import { ProviderErrorInterceptor } from '@slatrap/slatrap/nestjs';
  *
  * @Module({
  *   providers: [
- *     { provide: APP_INTERCEPTOR, useClass: SlatrapProviderErrorInterceptor },
+ *     { provide: APP_INTERCEPTOR, useClass: ProviderErrorInterceptor },
  *   ],
  * })
  * export class AppModule {}
@@ -36,10 +36,10 @@ type HttpRequestLike = {
  * Usage (Per-Controller):
  * ```typescript
  * import { UseInterceptors } from '@nestjs/common';
- * import { SlatrapProviderErrorInterceptor } from '@slatrap/slatrap';
+ * import { ProviderErrorInterceptor } from '@slatrap/slatrap/nestjs';
  *
  * @Controller('plaid')
- * @UseInterceptors(SlatrapProviderErrorInterceptor)
+ * @UseInterceptors(ProviderErrorInterceptor)
  * export class PlaidController {}
  * ```
  *
