@@ -2,18 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { normalizeFintechPayload } from '../../domain/errors/provider-error-normalizer';
 import { ItemMetadataService } from './item-metadata.service';
 import {
-  type MetadataContext,
   type MetadataBuilder,
   type CapturedProviderError,
   type FintechErrorContext,
+  type ProviderErrorMetadata,
 } from '../../domain/errors/provider-error.types';
 
 export { type CapturedProviderError } from '../../domain/errors/provider-error.types';
 
-function compact(obj: Record<string, string | undefined>): MetadataContext {
+function compact(obj: Record<string, string | undefined>): ProviderErrorMetadata {
   return Object.fromEntries(
     Object.entries(obj).filter(([, value]) => value !== undefined),
-  ) as MetadataContext;
+  ) as ProviderErrorMetadata;
 }
 
 const PROVIDER_METADATA_BUILDERS: Record<string, MetadataBuilder> = {
@@ -26,7 +26,7 @@ const PROVIDER_METADATA_BUILDERS: Record<string, MetadataBuilder> = {
 export class ProviderErrorCaptureService {
   private readonly logger = new Logger(ProviderErrorCaptureService.name);
 
-  constructor(private readonly itemMetadataService: ItemMetadataService) {}
+  constructor(private readonly itemMetadataService: ItemMetadataService) { }
 
   async captureProviderError(params: {
     endpoint?: string;
@@ -65,7 +65,7 @@ export class ProviderErrorCaptureService {
 
     this.logger.warn(logPayload, 'Fintech provider error captured');
 
-    const metadataCtx: MetadataContext = {
+    const availableMetadata: ProviderErrorMetadata = {
       userId: errorContext.userId,
       itemId: itemMetadata?.itemId,
       institutionId: itemMetadata?.institutionId,
@@ -74,7 +74,7 @@ export class ProviderErrorCaptureService {
 
     const buildMetadata =
       PROVIDER_METADATA_BUILDERS[errorContext.provider ?? ''] ?? (() => ({}));
-    const metadata = buildMetadata(metadataCtx);
+    const metadata = buildMetadata(availableMetadata);
 
     return {
       normalizedProvider: errorContext.provider,
