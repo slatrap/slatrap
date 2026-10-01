@@ -128,8 +128,8 @@ export { isRecord, toRecord } from './core/is-record';
 export type { AxiosLatencyHooksOptions } from './http/axios-latency';
 import type { AxiosLatencyHooksOptions } from './http/axios-latency';
 import {
-  createAxiosLatencyHooks as createAxiosLatencyHooksFor,
-  emitProviderLatency as emitProviderLatencyFor,
+  createAxiosLatencyHooksFor,
+  emitProviderLatencyFor,
 } from './http/axios-latency';
 import { type ProviderLatencyEmitInput } from './core/provider-latency-emit';
 
