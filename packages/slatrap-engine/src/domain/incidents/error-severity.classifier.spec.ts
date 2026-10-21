@@ -1,4 +1,9 @@
 import { classifyErrorSeverity } from './error-severity.classifier';
+import {
+  ERROR_SEVERITY_RULES,
+  type ErrorSeverityInput,
+  type SeverityRule,
+} from './severity-rules';
 
 describe('classifyErrorSeverity', () => {
   it('classifies a single provider timeout as low', () => {
@@ -20,6 +25,40 @@ describe('classifyErrorSeverity', () => {
         statusCode: 503,
       }),
     ).toBe('critical');
+  });
+
+  it('classifies 504 responses as critical', () => {
+    expect(classifyErrorSeverity({ statusCode: 504 })).toBe('critical');
+  });
+
+  it('has no unreachable severity rules', () => {
+    const orderedRules = [...ERROR_SEVERITY_RULES].sort(
+      (left, right) => right.priority - left.priority,
+    );
+
+    orderedRules.forEach((rule, index) => {
+      const input: ErrorSeverityInput = {
+        provider: rule.provider,
+        errorCode: Array.isArray(rule.errorCode)
+          ? rule.errorCode[0]
+          : rule.errorCode,
+        errorType: Array.isArray(rule.errorType)
+          ? rule.errorType[0]
+          : rule.errorType,
+        statusCode: rule.statusCode ?? rule.statusCodeMin ?? rule.statusCodeMax,
+      };
+      const fallbackRule: SeverityRule = {
+        priority: rule.priority - 1,
+        severity: rule.severity === 'critical' ? 'low' : 'critical',
+      };
+
+      expect(
+        classifyErrorSeverity(input, [
+          ...orderedRules.slice(0, index + 1),
+          fallbackRule,
+        ]),
+      ).toBe(rule.severity);
+    });
   });
 
   it('classifies rate limits as high', () => {
