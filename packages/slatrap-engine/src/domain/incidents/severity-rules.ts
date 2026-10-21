@@ -52,11 +52,6 @@ export const ERROR_SEVERITY_RULES: SeverityRule[] = [
     statusCode: 429,
   },
   {
-    priority: 60,
-    severity: 'high',
-    statusCode: 504,
-  },
-  {
     priority: 50,
     severity: 'medium',
     provider: 'plaid',
