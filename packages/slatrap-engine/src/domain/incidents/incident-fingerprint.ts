@@ -31,6 +31,7 @@ export function serializeFingerprintParts(
     parts.provider,
     parts.errorType,
     parts.errorCode,
+    parts.statusClass,
     parts.endpoint,
     parts.environment,
   ].join('|');

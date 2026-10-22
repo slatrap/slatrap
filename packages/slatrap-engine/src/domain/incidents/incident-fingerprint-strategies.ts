@@ -3,11 +3,13 @@ import {
   type BuildErrorIncidentFingerprintInput,
   type ErrorIncidentFingerprintParts,
 } from './incident-fingerprint.types';
+import { normalizeEndpointForFingerprint } from './incident-endpoint-normalizer';
 
 export type FingerprintStrategyInput = {
   provider: string;
   errorType: string;
   errorCode: string;
+  statusClass: string;
   endpoint: string;
   environment: string;
   metadata: Record<string, unknown>;
@@ -21,6 +23,7 @@ export const DEFAULT_STRATEGY: FingerprintStrategy = (input) => ({
   provider: input.provider,
   errorType: input.errorType || 'unknown',
   errorCode: input.errorCode,
+  statusClass: input.statusClass,
   endpoint: input.endpoint,
   environment: input.environment,
   fingerprintVersion: INCIDENT_FINGERPRINT_VERSION,
@@ -50,11 +53,16 @@ const STRATEGIES: Record<string, FingerprintStrategy> = {
 export function buildFingerprintStrategyInput(
   input: BuildErrorIncidentFingerprintInput,
 ): FingerprintStrategyInput {
+  const errorCode = normalizeFingerprintValue(input.errorCode);
+
   return {
     provider: normalizeFingerprintValue(input.provider),
     errorType: normalizeFingerprintValue(input.errorType),
-    errorCode: normalizeFingerprintValue(input.errorCode),
-    endpoint: input.endpoint ?? '',
+    errorCode,
+    statusClass: GENERIC_ERROR_CODES.has(errorCode)
+      ? toStatusClass(input.statusCode)
+      : '',
+    endpoint: normalizeEndpointForFingerprint(input.endpoint ?? ''),
     environment: normalizeFingerprintValue(input.environment ?? 'unknown'),
     metadata: input.metadata ?? {},
   };
@@ -62,6 +70,22 @@ export function buildFingerprintStrategyInput(
 
 export function resolveFingerprintStrategy(provider: string): FingerprintStrategy {
   return STRATEGIES[provider] ?? DEFAULT_STRATEGY;
+}
+
+const GENERIC_ERROR_CODES = new Set([
+  '',
+  'api_error',
+  'unknown',
+  'internal_error',
+  'server_error',
+]);
+
+function toStatusClass(statusCode: number | undefined): string {
+  if (statusCode === undefined || statusCode < 100 || statusCode > 599) {
+    return '';
+  }
+
+  return `${Math.floor(statusCode / 100)}xx`;
 }
 
 function normalizeFingerprintValue(value: string | undefined): string {

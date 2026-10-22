@@ -46,4 +46,33 @@ describe('buildErrorIncidentSummary', () => {
       }),
     });
   });
+
+  it('shares a fingerprint for generic 4xx responses but keeps their severities apart', () => {
+    const base = {
+      captured: {
+        normalizedProvider: 'adyen',
+        errorCode: '',
+        errorType: 'network_error',
+        errorMessage: 'upstream error',
+        endpoint: '/adyen/payments/123456',
+        requestId: 'req_002',
+        metadata: {},
+      },
+      environment: 'production',
+    };
+
+    const notFound = buildErrorIncidentSummary({
+      ...base,
+      captured: { ...base.captured, statusCode: 404 },
+    });
+    const tooManyRequests = buildErrorIncidentSummary({
+      ...base,
+      captured: { ...base.captured, statusCode: 429 },
+    });
+
+    expect(notFound.fingerprint.hash).toBe(tooManyRequests.fingerprint.hash);
+    expect(notFound.fingerprint.parts.endpoint).toBe('/adyen/payments/:id');
+    expect(notFound.severity).toBe('medium');
+    expect(tooManyRequests.severity).toBe('high');
+  });
 });
