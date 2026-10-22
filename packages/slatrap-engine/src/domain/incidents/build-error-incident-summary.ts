@@ -28,6 +28,7 @@ export function buildErrorIncidentSummary(
     provider,
     errorCode,
     errorType,
+    statusCode: input.captured.statusCode,
     endpoint,
     environment: input.environment,
     metadata: input.captured.metadata,

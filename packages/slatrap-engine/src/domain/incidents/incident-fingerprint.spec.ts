@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { INCIDENT_FINGERPRINT_VERSION } from './incident-fingerprint.types';
 import {
   buildErrorIncidentFingerprint,
   hashFingerprintParts,
@@ -27,7 +28,8 @@ describe('buildErrorIncidentFingerprint', () => {
       errorCode: 'timeout',
       endpoint: '/stripe/charges',
       environment: 'simulation',
-      fingerprintVersion: 1,
+      statusClass: '',
+      fingerprintVersion: 2,
     });
   });
 
@@ -182,7 +184,7 @@ describe('buildErrorIncidentFingerprint', () => {
     });
 
     expect(retryableNetworkError.hash).not.toBe(validationError.hash);
-    expect(retryableNetworkError.parts.fingerprintVersion).toBe(1);
+    expect(retryableNetworkError.parts.fingerprintVersion).toBe(2);
   });
 
   it('changes the hash when fingerprint version changes', () => {
@@ -196,10 +198,98 @@ describe('buildErrorIncidentFingerprint', () => {
 
     const nextVersionHash = hashFingerprintParts({
       ...parts,
-      fingerprintVersion: 2,
+      fingerprintVersion: INCIDENT_FINGERPRINT_VERSION + 1,
     });
 
     expect(nextVersionHash).not.toBe(hashFingerprintParts(parts));
+  });
+
+  it('groups generic errors with the same status class on the same endpoint', () => {
+    const base = {
+      provider: 'stripe',
+      errorType: 'api_error',
+      errorCode: 'api_error',
+      endpoint: '/stripe/charges',
+      environment: 'production',
+    };
+
+    const serverError500 = buildErrorIncidentFingerprint({
+      ...base,
+      statusCode: 500,
+    });
+    const serverError503 = buildErrorIncidentFingerprint({
+      ...base,
+      statusCode: 503,
+    });
+
+    expect(serverError500.parts.statusClass).toBe('5xx');
+    expect(serverError500.hash).toBe(serverError503.hash);
+  });
+
+  it('separates generic errors with different status classes', () => {
+    const base = {
+      provider: 'adyen',
+      errorType: 'network_error',
+      errorCode: '',
+      endpoint: '/adyen/payments',
+      environment: 'production',
+    };
+
+    const clientError = buildErrorIncidentFingerprint({
+      ...base,
+      statusCode: 404,
+    });
+    const serverError = buildErrorIncidentFingerprint({
+      ...base,
+      statusCode: 503,
+    });
+
+    expect(clientError.parts.statusClass).toBe('4xx');
+    expect(clientError.hash).not.toBe(serverError.hash);
+  });
+
+  it('does not add status class for specific error codes', () => {
+    const base = {
+      provider: 'stripe',
+      errorType: 'card_error',
+      errorCode: 'card_declined',
+      endpoint: '/stripe/charges',
+      environment: 'simulation',
+    };
+
+    const badRequest = buildErrorIncidentFingerprint({
+      ...base,
+      statusCode: 400,
+    });
+    const paymentRequired = buildErrorIncidentFingerprint({
+      ...base,
+      statusCode: 402,
+    });
+
+    expect(badRequest.parts.statusClass).toBe('');
+    expect(badRequest.hash).toBe(paymentRequired.hash);
+  });
+
+  it('groups endpoints that differ only by resource ids', () => {
+    const base = {
+      provider: 'stripe',
+      errorType: 'invalid_request_error',
+      errorCode: 'resource_missing',
+      environment: 'production',
+      statusCode: 404,
+    };
+
+    const customerA = buildErrorIncidentFingerprint({
+      ...base,
+      endpoint: '/v1/customers/cus_111',
+    });
+    const customerB = buildErrorIncidentFingerprint({
+      ...base,
+      endpoint: '/v1/customers/cus_222',
+    });
+
+    expect(customerA.parts.endpoint).toBe('/v1/customers/:id');
+    expect(customerA.hash).toBe(customerB.hash);
   });
 });
 
