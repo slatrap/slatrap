@@ -4,6 +4,8 @@
 
 Sanitize and emit fintech provider errors (Plaid, Stripe, and similar) without leaking secrets. Framework-agnostic use from Node, Axios, or NestJS.
 
+If your app already has an event bus, queue, alerting pipeline, database, or incident workflow, Slatrap can sanitize provider errors and hand them off to it.
+
 Published on [npm](https://www.npmjs.com/package/@slatrap/slatrap) under the [@slatrap](https://www.npmjs.com/org/slatrap) scope.
 
 ## Install
@@ -139,10 +141,7 @@ Use these hooks when you want explicit provider latency telemetry in addition to
 
 ```ts
 import axios from 'axios';
-import {
-  configureSlatrap,
-  createAxiosLatencyHooks,
-} from '@slatrap/slatrap';
+import { configureSlatrap, createAxiosLatencyHooks } from '@slatrap/slatrap';
 
 configureSlatrap({
   emit: (payload) => myEventBus.publish('provider.events', payload),
@@ -252,7 +251,6 @@ Whitelisted top-level fields (e.g. `provider`, `endpoint`, `statusCode`, `provid
 
 ## API summary
 
-
 | Export                                                 | Purpose                                                                                                                                               |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sanitizeErrorData`                                    | Redact sensitive fields on any value                                                                                                                  |
@@ -262,17 +260,16 @@ Whitelisted top-level fields (e.g. `provider`, `endpoint`, `statusCode`, `provid
 | `SanitizedValue`                                       | Output of `sanitize`; required input for `emit`                                                                                                       |
 | `configureSlatrap`                                     | Set global `emit` handler and redaction defaults (call once at startup)                                                                               |
 | `createSlatrap`                                        | Non-global instance with its own handler                                                                                                              |
-| `createAxiosResponseErrorInterceptor`                  | Axios error middleware; normalizes timeout failures before `emit` (optional `defaultProvider`, `resolveEndpoint`, `resolveTimeoutMs`)              |
-| `isHttpTimeoutError` / `buildHttpTimeoutEmitPayload`  | Detect HTTP timeouts and build a provider-agnostic emit payload (`504`, `error_type: timeout`)                                                       |
-| `fetchWithTimeout`                                     | `fetch` with `AbortSignal.timeout`; optional `formatTimeoutError` for provider-specific transport errors                                            |
-| `createAxiosLatencyHooks` / `emitProviderLatency`      | Emit provider latency telemetry for success and error paths (core event: `provider.latency`)                                                         |
+| `createAxiosResponseErrorInterceptor`                  | Axios error middleware; normalizes timeout failures before `emit` (optional `defaultProvider`, `resolveEndpoint`, `resolveTimeoutMs`)                 |
+| `isHttpTimeoutError` / `buildHttpTimeoutEmitPayload`   | Detect HTTP timeouts and build a provider-agnostic emit payload (`504`, `error_type: timeout`)                                                        |
+| `fetchWithTimeout`                                     | `fetch` with `AbortSignal.timeout`; optional `formatTimeoutError` for provider-specific transport errors                                              |
+| `createAxiosLatencyHooks` / `emitProviderLatency`      | Emit provider latency telemetry for success and error paths (core event: `provider.latency`)                                                          |
 | `PROVIDER_LATENCY_EVENT_NAME`                          | Constant event name for provider latency envelopes (`provider.latency`)                                                                               |
 | `buildProviderLatencyEmitPayload`                      | Build a core latency event envelope from provider/endpoint/timing inputs                                                                              |
 | `ProviderErrorEmitInput`                               | Type for provider-error fields passed to `Slatrap.emit` (envelope defaults applied inside emit)                                                       |
-| `resolveAxiosResponseStatus`                           | Extract HTTP status from Axios responses/errors for latency/error classification                                                                       |
+| `resolveAxiosResponseStatus`                           | Extract HTTP status from Axios responses/errors for latency/error classification                                                                      |
 | `@slatrap/slatrap/nestjs` → `ProviderErrorInterceptor` | Nest HTTP interceptor (peer: `@nestjs/common`, `rxjs`)                                                                                                |
 | `configureSlatrapForCoreInspector`                     | Map emits to your event bus by event name                                                                                                             |
-
 
 ## Related
 
