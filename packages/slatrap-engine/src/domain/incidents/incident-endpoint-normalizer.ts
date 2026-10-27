@@ -1,6 +1,6 @@
 const ID_SEGMENT_PATTERNS = [
-  // Stripe object IDs, e.g. cus_123, pi_abc, ch_xyz.
-  /^(cus|pi|ch|acct|in|sub)_[a-z0-9]+$/i,
+  // Stripe object IDs, e.g. cus_123, pi_abc, ch_xyz, re_abc, po_abc.
+  /^(cus|pi|ch|acct|in|sub|re|po|tr|dp)_[a-z0-9]+$/i,
   /^\d{4,}$/,
   /^[0-9a-f]{16,}$/i,
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
@@ -12,7 +12,9 @@ export function normalizeEndpointForFingerprint(endpoint: string): string {
   return path
     .split('/')
     .map((segment) =>
-      ID_SEGMENT_PATTERNS.some((pattern) => pattern.test(segment)) ? ':id' : segment,
+      ID_SEGMENT_PATTERNS.some((pattern) => pattern.test(segment))
+        ? ':id'
+        : segment,
     )
     .join('/');
 }

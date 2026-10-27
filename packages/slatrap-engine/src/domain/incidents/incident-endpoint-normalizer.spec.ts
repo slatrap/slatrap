@@ -5,8 +5,29 @@ describe('normalizeEndpointForFingerprint', () => {
     expect(normalizeEndpointForFingerprint('/v1/charges/ch_3NabcXYZ')).toBe(
       '/v1/charges/:id',
     );
-    expect(normalizeEndpointForFingerprint('/v1/payment_intents/pi_1Q2w3e')).toBe(
-      '/v1/payment_intents/:id',
+    expect(
+      normalizeEndpointForFingerprint('/v1/payment_intents/pi_1Q2w3e'),
+    ).toBe('/v1/payment_intents/:id');
+  });
+
+  it('replaces refund, payout, and other stripe ids with a placeholder', () => {
+    expect(
+      normalizeEndpointForFingerprint('/v1/refunds/re_3NabcXYZ/cancel'),
+    ).toBe('/v1/refunds/:id/cancel');
+    expect(normalizeEndpointForFingerprint('/v1/payouts/po_1Q2w3e')).toBe(
+      '/v1/payouts/:id',
+    );
+    expect(
+      normalizeEndpointForFingerprint('/v1/disputes/dp_1Q2w3e/close'),
+    ).toBe('/v1/disputes/:id/close');
+  });
+
+  it('keeps stripe resource names that contain underscores unchanged', () => {
+    expect(normalizeEndpointForFingerprint('/v1/payment_intents')).toBe(
+      '/v1/payment_intents',
+    );
+    expect(normalizeEndpointForFingerprint('/v1/setup_intents')).toBe(
+      '/v1/setup_intents',
     );
   });
 
