@@ -6,6 +6,7 @@ export type FintechErrorContext = {
   errorMessage?: string;
   requestId?: string;
   userId?: string;
+  connectedAccountId?: string;
   itemId?: string;
   institutionId?: string;
   institutionName?: string;
@@ -14,7 +15,11 @@ export type FintechErrorContext = {
 /** Provider-scoped fields from {@link FintechErrorContext} attached to incidents. */
 export type ProviderErrorMetadata = Pick<
   FintechErrorContext,
-  'userId' | 'itemId' | 'institutionId' | 'institutionName'
+  | 'userId'
+  | 'connectedAccountId'
+  | 'itemId'
+  | 'institutionId'
+  | 'institutionName'
 >;
 
 export type MetadataBuilder = (

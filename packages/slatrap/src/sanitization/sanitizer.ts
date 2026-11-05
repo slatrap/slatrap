@@ -41,6 +41,7 @@ const DEFAULT_WHITELIST_CANDIDATES = [
   'eventName',
   'payload',
   'userId',
+  'connectedAccountId',
   'itemId',
   'institutionId',
   'institutionName',

@@ -26,6 +26,7 @@ function normalizeFintechPayload(
     errorMessage: readString(payloadRecord, ['error_message', 'message']),
     requestId: readString(payloadRecord, ['request_id', 'requestId']),
     userId: readString(payloadRecord, ['user_id', 'userId']),
+    connectedAccountId: readString(payloadRecord, ['connectedAccountId']),
     itemId: readString(payloadRecord, ['item_id', 'itemId']),
     institutionId: readString(payloadRecord, [
       'institution_id',

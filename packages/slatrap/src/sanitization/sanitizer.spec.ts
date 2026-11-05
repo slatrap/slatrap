@@ -42,6 +42,24 @@ describe('sanitizeErrorData', () => {
     });
   });
 
+  it('keeps connectedAccountId inside providerPayload', () => {
+    const sanitized = sanitizeErrorData({
+      provider: 'stripe',
+      providerPayload: {
+        code: 'card_declined',
+        connectedAccountId: 'acct_1Q2w3e',
+      },
+    });
+
+    expect(sanitized).toEqual({
+      provider: 'stripe',
+      providerPayload: {
+        code: 'card_declined',
+        connectedAccountId: 'acct_1Q2w3e',
+      },
+    });
+  });
+
   it('allows extending whitelist via options.whitelist', () => {
     const sanitized = sanitizeErrorData(
       {

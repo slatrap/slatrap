@@ -28,6 +28,8 @@ interface WebhookRequest {
 type StripeWebhookEvent = {
   id?: string;
   type?: string;
+  /** Connected account that originated the event; absent for platform events. */
+  account?: string;
   created?: number;
   request?: {
     id?: string;
@@ -46,7 +48,7 @@ type StripeWebhookEvent = {
 export class StripeWebhookController {
   private readonly logger = new Logger(StripeWebhookController.name);
 
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   @Post('webhook')
   @HttpCode(200)
@@ -76,6 +78,7 @@ export class StripeWebhookController {
     const stripePayload = {
       ...stripeError,
       ...(userId ? { userId } : {}),
+      ...(event.account ? { connectedAccountId: event.account } : {}),
       ...this.readSimulatorStartedAt(paymentIntent.metadata),
     };
 

@@ -103,4 +103,31 @@ describe('FintechErrorCaptureService', () => {
       },
     });
   });
+
+  it('keeps connectedAccountId from the stripe payload on metadata', async () => {
+    const itemMetadataService = {
+      resolve: jest.fn(),
+    };
+    const service = new ProviderErrorCaptureService(
+      itemMetadataService as unknown as ItemMetadataService,
+    );
+
+    const result = await service.captureProviderError({
+      endpoint: '/v1/payouts',
+      statusCode: 402,
+      providerPayload: {
+        type: 'invalid_request_error',
+        code: 'balance_insufficient',
+        message: 'Insufficient funds',
+        userId: 'user_01',
+        connectedAccountId: 'acct_1Q2w3e',
+      },
+      provider: 'stripe',
+    });
+
+    expect(result?.metadata).toEqual({
+      userId: 'user_01',
+      connectedAccountId: 'acct_1Q2w3e',
+    });
+  });
 });

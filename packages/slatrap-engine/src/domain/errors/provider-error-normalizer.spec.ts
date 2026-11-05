@@ -84,6 +84,7 @@ describe('normalizeFintechPayload', () => {
       message: 'Your card was declined.',
       requestId: 'req_stripe_01',
       userId: 'user_stripe_01',
+      connectedAccountId: 'acct_1Q2w3e',
     };
 
     const result = normalizeFintechPayload(payload);
@@ -94,6 +95,7 @@ describe('normalizeFintechPayload', () => {
     expect(result.errorMessage).toBe('Your card was declined.');
     expect(result.requestId).toBe('req_stripe_01');
     expect(result.userId).toBe('user_stripe_01');
+    expect(result.connectedAccountId).toBe('acct_1Q2w3e');
   });
 
   it('does not infer provider from message-only payloads', () => {
@@ -132,6 +134,8 @@ describe('normalizeFintechPayload', () => {
     expect(result.provider).toBe('stripe');
     expect(result.errorType).toBe('api_connection_error');
     expect(result.errorCode).toBe('timeout');
-    expect(result.errorMessage).toBe('Stripe API request timed out after 300ms');
+    expect(result.errorMessage).toBe(
+      'Stripe API request timed out after 300ms',
+    );
   });
 });

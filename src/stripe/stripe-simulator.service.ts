@@ -34,7 +34,9 @@ export class StripeSimulatorService {
   run(route: string): Promise<never> {
     const simulation = getStripeSimulation(route);
     if (!simulation) {
-      throw new NotFoundException(`Unknown Stripe simulation scenario: ${route}`);
+      throw new NotFoundException(
+        `Unknown Stripe simulation scenario: ${route}`,
+      );
     }
 
     if (simulation.kind === 'timeout') {
@@ -80,13 +82,16 @@ export class StripeSimulatorService {
     }
   }
 
-  private async handleSimulationFailure(
+  private handleSimulationFailure(
     simulation: StripeSimulationSpec,
     error: unknown,
     start: number,
   ): Promise<never> {
     const externalRefId = this.configService.get<string>(
       'STRIPE_EXTERNAL_REF_ID',
+    );
+    const connectedAccountId = this.configService.get<string>(
+      'STRIPE_CONNECTED_ACCOUNT_ID',
     );
     const mapped = this.stripeSimulatorErrorMapper.map(error);
     const stripeError = mapped.stripeError;
@@ -100,6 +105,7 @@ export class StripeSimulatorService {
     const stripePayload = {
       ...stripeError,
       ...(externalRefId ? { userId: externalRefId } : {}),
+      ...(connectedAccountId ? { connectedAccountId } : {}),
     };
 
     if (mapped.shouldEmitProviderEvent) {

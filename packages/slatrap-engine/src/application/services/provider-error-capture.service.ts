@@ -10,14 +10,17 @@ import {
 
 export { type CapturedProviderError } from '../../domain/errors/provider-error.types';
 
-function compact(obj: Record<string, string | undefined>): ProviderErrorMetadata {
+function compact(
+  obj: Record<string, string | undefined>,
+): ProviderErrorMetadata {
   return Object.fromEntries(
     Object.entries(obj).filter(([, value]) => value !== undefined),
   ) as ProviderErrorMetadata;
 }
 
 const PROVIDER_METADATA_BUILDERS: Record<string, MetadataBuilder> = {
-  stripe: ({ userId }) => compact({ userId }),
+  stripe: ({ userId, connectedAccountId }) =>
+    compact({ userId, connectedAccountId }),
   plaid: ({ itemId, institutionId, institutionName }) =>
     compact({ itemId, institutionId, institutionName }),
 };
@@ -26,7 +29,7 @@ const PROVIDER_METADATA_BUILDERS: Record<string, MetadataBuilder> = {
 export class ProviderErrorCaptureService {
   private readonly logger = new Logger(ProviderErrorCaptureService.name);
 
-  constructor(private readonly itemMetadataService: ItemMetadataService) { }
+  constructor(private readonly itemMetadataService: ItemMetadataService) {}
 
   async captureProviderError(params: {
     endpoint?: string;
@@ -67,6 +70,7 @@ export class ProviderErrorCaptureService {
 
     const availableMetadata: ProviderErrorMetadata = {
       userId: errorContext.userId,
+      connectedAccountId: errorContext.connectedAccountId,
       itemId: itemMetadata?.itemId,
       institutionId: itemMetadata?.institutionId,
       institutionName: itemMetadata?.institutionName,
